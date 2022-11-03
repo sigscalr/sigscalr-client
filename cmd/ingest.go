@@ -1,7 +1,7 @@
 package cmd
 
 import (
-	"fmt"
+	log "github.com/sirupsen/logrus"
 
 	verifier "verifier/pkg/verifier"
 
@@ -19,11 +19,11 @@ var ingestCmd = &cobra.Command{
 		batchSize, _ := cmd.Flags().GetInt("batchSize")
 		indexName, _ := cmd.Flags().GetString("indexName")
 
-		fmt.Printf("processCount : %+v\n", processCount)
-		fmt.Printf("dest : %+v\n", dest)
-		fmt.Printf("totalEvents : %+v\n", totalEvents)
-		fmt.Printf("batchSize : %+v\n", batchSize)
-		fmt.Printf("indexName : %+v\n", indexName)
+		log.Infof("processCount : %+v\n", processCount)
+		log.Infof("dest : %+v\n", dest)
+		log.Infof("totalEvents : %+v\n", totalEvents)
+		log.Infof("batchSize : %+v\n", batchSize)
+		log.Infof("indexName : %+v\n", indexName)
 
 		verifier.StartIngestion(totalEvents, batchSize, dest, indexName, processCount)
 	},
@@ -35,5 +35,5 @@ func init() {
 	ingestCmd.PersistentFlags().StringP("dest", "d", "", "Destination URL")
 	ingestCmd.PersistentFlags().IntP("totalEvents", "t", 1000000, "Total number of events")
 	ingestCmd.PersistentFlags().IntP("batchSize", "b", 100, "Batch size")
-	ingestCmd.PersistentFlags().StringP("indexName", "i", "index", "index name ")
+	ingestCmd.PersistentFlags().StringP("indexName", "i", "index", "index name")
 }
