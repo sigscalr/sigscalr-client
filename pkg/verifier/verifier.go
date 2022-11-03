@@ -1,18 +1,17 @@
 package verifier
 
 import (
-	"bufio"
 	"bytes"
 	"encoding/json"
 	"fmt"
-	"io"
 	"io/ioutil"
 	"net/http"
-	"os"
 	"sync"
 	"time"
 
 	log "github.com/sirupsen/logrus"
+	"github.com/valyala/bytebufferpool"
+	"github.com/valyala/fastrand"
 )
 
 const INDEX = "verifier"
@@ -23,7 +22,7 @@ func sendRequest(lines string, url string) {
 
 	buf := bytes.NewBuffer([]byte(lines))
 
-	requestStr := url + "/_bulk?pretty=true"
+	requestStr := url + "/_bulk"
 
 	req, err := http.NewRequest("POST", requestStr, buf)
 
@@ -46,80 +45,61 @@ func sendRequest(lines string, url string) {
 	}
 }
 
-func runIngestion(wg *sync.WaitGroup, fileName, url string, totalEvents, batchSize, processNo, timestamp, timeIncrement, eventIncrement int, indexSuffix string) {
-	defer wg.Done()
-	var event map[string]interface{}
+var numCols = 4
+var frand fastrand.RNG
 
-	eventCounter := 0
-	var lines string
+func updateMockBody(m map[string]interface{}) {
+	m["col1"] = fmt.Sprintf("batch-%d", frand.Uint32n(1001))
+	m["col2"] = frand.Uint32n(200)
+	m["col3"] = "abc"
+	m["col4"] = "abc def"
+}
 
-	fr, err := os.OpenFile(fileName, os.O_RDONLY, 0644)
-	if err != nil {
-		log.Errorf("Process=%d Failed to open name=%v, err:%s", processNo, fileName, err)
-		return
-	}
-	defer fr.Close()
+func generateBulkBody(recs int, idx string) string {
+	actionLine := "{\"index\": {\"_index\": \"" + idx + "\", \"_type\": \"_doc\"}}\n"
+	bb := bytebufferpool.Get()
+	defer bytebufferpool.Put(bb)
 
-	indexName := fmt.Sprintf("%v-v%v", indexSuffix, processNo)
-	for eventCounter < totalEvents {
-		reader := bufio.NewScanner(fr)
-		for reader.Scan() {
-			lines += "{\"index\": {\"_index\": \"" + indexName + "\", \"_type\": \"_doc\"}}\n"
-			err = json.Unmarshal(reader.Bytes(), &event)
-			if err != nil {
-				log.Errorf("Process= %d failed to unmarshal record err: %s", processNo, err.Error())
-			}
-			event["timestamp"] = timestamp
-			data, err := json.Marshal(event)
-			if err != nil {
-				log.Errorf("Process= %d failed to matshal record err: %s", processNo, err.Error())
-			}
-			lines += string(data) + "\n"
-
-			if eventCounter%batchSize == 0 {
-				sendRequest(lines, url)
-				if eventCounter%PRINT_FREQ == 0 {
-					log.Infof("Process=%d Total logs ingested so far %d", processNo, eventCounter)
-				}
-				lines = ""
-			}
-			eventCounter++
-			if eventCounter >= totalEvents {
-				break
-			}
-			if eventCounter%eventIncrement == 0 {
-				timestamp += timeIncrement
-			}
-		}
-		_, err = fr.Seek(0, io.SeekStart)
+	m := make(map[string]interface{}, numCols)
+	for i := 0; i < recs; i++ {
+		bb.WriteString(actionLine)
+		updateMockBody(m)
+		retVal, err := json.Marshal(&m)
 		if err != nil {
-			log.Fatal("Process=%d Failed to rewind file ptr, err=%v", processNo, err)
+			log.Fatalf("Error marshalling mock body %+v", err)
 		}
+		bb.Write(retVal)
 	}
+	retVal := bb.String()
+	return retVal
+}
 
-	if len(lines) > 0 {
-		sendRequest(lines, url)
+func runIngestion(wg *sync.WaitGroup, url string, totalEvents, batchSize, processNo int, indexSuffix string) {
+	defer wg.Done()
+	eventCounter := 0
+	indexName := fmt.Sprintf("%v-%v", indexSuffix, processNo)
+	for eventCounter < totalEvents {
+
+		recsInBatch := batchSize
+		if eventCounter+batchSize > totalEvents {
+			recsInBatch = totalEvents - eventCounter
+		}
+		payload := generateBulkBody(recsInBatch, indexName)
+		sendRequest(payload, url)
+		eventCounter += recsInBatch
 	}
 
 	log.Infof("Process=%d Finished ingestion of Total Records %d", processNo, totalEvents)
 }
 
-func StartIngestion(totalEvents int, batchSize int, url string, indexSuffix string, filePrefix string, processCount int, timeRange int) {
+func StartIngestion(totalEvents int, batchSize int, url string, indexSuffix string, processCount int) {
 	log.Println("Starting ingestion at ", url, "...")
 	var wg sync.WaitGroup
 	startTime := time.Now()
 	totalEventsPerProcess := totalEvents / processCount
-	timestamp := int(time.Now().Unix())
-	timeIncrement := (timeRange * 1000) / totalEventsPerProcess
-	eventIncrement := 1
-	if timeIncrement <= 0 {
-		eventIncrement = totalEventsPerProcess / (timeRange * 1000)
-		timeIncrement = 1
-	}
 	for i := 0; i < processCount; i++ {
-		fileName := fmt.Sprintf("%s-%d.json", filePrefix, i)
 		wg.Add(1)
-		go runIngestion(&wg, fileName, url, totalEventsPerProcess, batchSize, i+1, timestamp, timeIncrement, eventIncrement, indexSuffix)
+		go runIngestion(&wg, url, totalEventsPerProcess, batchSize, i+1, indexSuffix)
 	}
 	wg.Wait()
 	log.Println("Total logs ingested: ", totalEvents)
