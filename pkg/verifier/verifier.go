@@ -205,7 +205,7 @@ func StartIngestion(totalEvents int, batchSize int, url string, indexSuffix stri
 	startTime := time.Now()
 	totalEventsPerProcess := totalEvents / processCount
 
-	ticker := time.NewTicker(time.Second * 10)
+	ticker := time.NewTicker(time.Minute)
 	done := make(chan bool)
 	totalSent := uint64(0)
 	for i := 0; i < processCount; i++ {
