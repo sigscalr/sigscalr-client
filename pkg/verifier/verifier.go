@@ -218,7 +218,7 @@ func StartIngestion(totalEvents int, batchSize int, url string, indexSuffix stri
 		done <- true
 	}()
 
-	lastPrintedCount := float64(0)
+	lastPrintedCount := uint64(0)
 readChannel:
 	for {
 		select {
@@ -226,10 +226,9 @@ readChannel:
 			break readChannel
 		case <-ticker.C:
 			totalTimeTaken := time.Since(startTime)
-			eSent := float64(totalSent)
-			eventsPerMin := (eSent - lastPrintedCount)
+			eventsPerMin := totalSent - lastPrintedCount
 			log.Infof("Total elapsed time: %+v. Total sent events %+v. Events per minute %+v", totalTimeTaken, totalSent, eventsPerMin)
-			lastPrintedCount = eSent
+			lastPrintedCount = totalSent
 		}
 	}
 	log.Println("Total logs ingested: ", totalEvents)
