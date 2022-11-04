@@ -74,7 +74,7 @@ func getMockBody() map[string]interface{} {
 	return ev
 }
 
-func generateBulkBody(recs int, actionLine string, body []byte, idx string) string {
+func generateBulkBody(recs int, actionLine string, body []byte) string {
 	bb := bytebufferpool.Get()
 	defer bytebufferpool.Put(bb)
 
@@ -94,16 +94,18 @@ func getActionLine(i int) string {
 func runIngestion(wg *sync.WaitGroup, url string, totalEvents, batchSize, processNo int, indexSuffix string, ctr *uint64) {
 	defer wg.Done()
 	eventCounter := 0
-	indexName := fmt.Sprintf("%v", indexSuffix)
 	m := getMockBody()
 	body, err := json.Marshal(m)
 	if err != nil {
 		log.Fatalf("Error marshalling mock body %+v", err)
 	}
+	t := http.DefaultTransport.(*http.Transport).Clone()
+	t.MaxIdleConns = 500
+	t.MaxConnsPerHost = 100
+	t.MaxIdleConnsPerHost = 100
 	client := &http.Client{
-		Transport: &http.Transport{
-			MaxConnsPerHost: 1,
-		},
+		Timeout:   10 * time.Second,
+		Transport: t,
 	}
 
 	i := 0
@@ -115,7 +117,7 @@ func runIngestion(wg *sync.WaitGroup, url string, totalEvents, batchSize, proces
 		}
 		actionLine := getActionLine(i)
 		i++
-		payload := generateBulkBody(recsInBatch, actionLine, body, indexName)
+		payload := generateBulkBody(recsInBatch, actionLine, body)
 		sendRequest(client, payload, url)
 		eventCounter += recsInBatch
 		atomic.AddUint64(ctr, uint64(recsInBatch))
