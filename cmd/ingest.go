@@ -1,7 +1,7 @@
 package cmd
 
 import (
-	"fmt"
+	log "github.com/sirupsen/logrus"
 
 	verifier "verifier/pkg/verifier"
 
@@ -18,28 +18,22 @@ var ingestCmd = &cobra.Command{
 		totalEvents, _ := cmd.Flags().GetInt("totalEvents")
 		batchSize, _ := cmd.Flags().GetInt("batchSize")
 		indexName, _ := cmd.Flags().GetString("indexName")
-		timeRange, _ := cmd.Flags().GetInt("timeRange")
-		filePrefix, _ := cmd.Flags().GetString("filePrefix")
 
-		fmt.Printf("processCount : %+v\n", processCount)
-		fmt.Printf("dest : %+v\n", dest)
-		fmt.Printf("totalEvents : %+v\n", totalEvents)
-		fmt.Printf("batchSize : %+v\n", batchSize)
-		fmt.Printf("indexName : %+v\n", indexName)
-		fmt.Printf("timeRange : %+v\n", timeRange)
-		fmt.Printf("filePrefix : %+v\n", filePrefix)
+		log.Infof("processCount : %+v\n", processCount)
+		log.Infof("dest : %+v\n", dest)
+		log.Infof("totalEvents : %+v\n", totalEvents)
+		log.Infof("batchSize : %+v\n", batchSize)
+		log.Infof("indexName : %+v\n", indexName)
 
-		verifier.StartIngestion(totalEvents, batchSize, dest, indexName, filePrefix, processCount, timeRange)
+		verifier.StartIngestion(totalEvents, batchSize, dest, indexName, processCount)
 	},
 }
 
 func init() {
 	rootCmd.AddCommand(ingestCmd)
-	ingestCmd.PersistentFlags().IntP("processCount", "p", 1, "Number of parallel process to ingest data from different files.")
+	ingestCmd.PersistentFlags().IntP("processCount", "p", 1, "Number of parallel process to ingest data from.")
 	ingestCmd.PersistentFlags().StringP("dest", "d", "", "Destination URL")
 	ingestCmd.PersistentFlags().IntP("totalEvents", "t", 1000000, "Total number of events")
-	ingestCmd.PersistentFlags().IntP("batchSize", "b", 1000, "Batch size")
-	ingestCmd.PersistentFlags().StringP("indexName", "i", "default", "index name ")
-	ingestCmd.PersistentFlags().IntP("timeRange", "r", 3600, "Time Duration is seconds for event range")
-	ingestCmd.PersistentFlags().StringP("filePrefix", "x", "ab", "file prefix to read the events from to ingest engine")
+	ingestCmd.PersistentFlags().IntP("batchSize", "b", 100, "Batch size")
+	ingestCmd.PersistentFlags().StringP("indexName", "i", "index", "index name")
 }

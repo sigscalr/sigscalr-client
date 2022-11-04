@@ -1,29 +1,31 @@
 package verifier
 
 import (
-	"bufio"
 	"bytes"
-	"encoding/json"
 	"fmt"
-	"io"
 	"io/ioutil"
 	"net/http"
-	"os"
 	"sync"
+	"sync/atomic"
 	"time"
+	"unsafe"
 
+	jsoniter "github.com/json-iterator/go"
 	log "github.com/sirupsen/logrus"
+	"github.com/valyala/bytebufferpool"
 )
 
 const INDEX = "verifier"
 
 const PRINT_FREQ = 100_000
 
+var json = jsoniter.ConfigCompatibleWithStandardLibrary
+
 func sendRequest(lines string, url string) {
 
 	buf := bytes.NewBuffer([]byte(lines))
 
-	requestStr := url + "/_bulk?pretty=true"
+	requestStr := url + "/_bulk"
 
 	req, err := http.NewRequest("POST", requestStr, buf)
 
@@ -46,83 +48,107 @@ func sendRequest(lines string, url string) {
 	}
 }
 
-func runIngestion(wg *sync.WaitGroup, fileName, url string, totalEvents, batchSize, processNo, timestamp, timeIncrement, eventIncrement int, indexSuffix string) {
+// var frand fastrand.RNG
+
+func getMockBody() map[string]interface{} {
+	ev := make(map[string]interface{})
+	ts := time.Now().Unix()
+	ev["logset"] = "t1"
+	ev["traffic_flags"] = 8193
+	ev["high_res_timestamp"] = ts
+	ev["parent_start_time"] = ts
+	ev["inbound_if"] = "1103823372288"
+	ev["pod_name"] = "tam-dp-77754f4"
+	ev["dstloc"] = "west-coast"
+	ev["natdport"] = 17856
+	ev["time_generated"] = ts
+	ev["vpadding"] = 0
+	ev["sdwan_fec_data"] = 0
+	ev["chunks_sent"] = 67
+	ev["offloaded"] = 0
+	ev["dst_model"] = "S9"
+	ev["to"] = "ethernet4Zone-test4"
+	ev["monitor_tag_imei"] = "US Social"
+	ev["xff_ip"] = "00000000000000000000ffff02020202"
+	ev["dstuser"] = "funccompanysaf3ti"
+	ev["seqno"] = 6922966563614901991
+	ev["tunneled-app"] = "gtpv1-c"
+	return ev
+}
+
+func generateBulkBody(recs int, body []byte, idx string) string {
+	actionLine := "{\"index\": {\"_index\": \"" + idx + "\", \"_type\": \"_doc\"}}\n"
+	bb := bytebufferpool.Get()
+	defer bytebufferpool.Put(bb)
+
+	for i := 0; i < recs; i++ {
+		bb.WriteString(actionLine)
+		bb.Write(body)
+	}
+	payLoad := bb.String()
+	return payLoad
+}
+
+func runIngestion(wg *sync.WaitGroup, url string, totalEvents, batchSize, processNo int, indexSuffix string, ctr *uint64) {
 	defer wg.Done()
-	var event map[string]interface{}
-
 	eventCounter := 0
-	var lines string
-
-	fr, err := os.OpenFile(fileName, os.O_RDONLY, 0644)
+	indexName := fmt.Sprintf("%v", indexSuffix)
+	m := getMockBody()
+	body, err := json.Marshal(m)
 	if err != nil {
-		log.Errorf("Process=%d Failed to open name=%v, err:%s", processNo, fileName, err)
-		return
+		log.Fatalf("Error marshalling mock body %+v", err)
 	}
-	defer fr.Close()
+	stringSize := len(body) + int(unsafe.Sizeof(body))
+	log.Infof("Size of event log line is %+v bytes", stringSize)
 
-	indexName := fmt.Sprintf("%v-v%v", indexSuffix, processNo)
 	for eventCounter < totalEvents {
-		reader := bufio.NewScanner(fr)
-		for reader.Scan() {
-			lines += "{\"index\": {\"_index\": \"" + indexName + "\", \"_type\": \"_doc\"}}\n"
-			err = json.Unmarshal(reader.Bytes(), &event)
-			if err != nil {
-				log.Errorf("Process= %d failed to unmarshal record err: %s", processNo, err.Error())
-			}
-			event["timestamp"] = timestamp
-			data, err := json.Marshal(event)
-			if err != nil {
-				log.Errorf("Process= %d failed to matshal record err: %s", processNo, err.Error())
-			}
-			lines += string(data) + "\n"
 
-			if eventCounter%batchSize == 0 {
-				sendRequest(lines, url)
-				if eventCounter%PRINT_FREQ == 0 {
-					log.Infof("Process=%d Total logs ingested so far %d", processNo, eventCounter)
-				}
-				lines = ""
-			}
-			eventCounter++
-			if eventCounter >= totalEvents {
-				break
-			}
-			if eventCounter%eventIncrement == 0 {
-				timestamp += timeIncrement
-			}
+		recsInBatch := batchSize
+		if eventCounter+batchSize > totalEvents {
+			recsInBatch = totalEvents - eventCounter
 		}
-		_, err = fr.Seek(0, io.SeekStart)
-		if err != nil {
-			log.Fatal("Process=%d Failed to rewind file ptr, err=%v", processNo, err)
-		}
-	}
-
-	if len(lines) > 0 {
-		sendRequest(lines, url)
+		payload := generateBulkBody(recsInBatch, body, indexName)
+		sendRequest(payload, url)
+		eventCounter += recsInBatch
+		atomic.AddUint64(ctr, uint64(recsInBatch))
 	}
 
 	log.Infof("Process=%d Finished ingestion of Total Records %d", processNo, totalEvents)
 }
 
-func StartIngestion(totalEvents int, batchSize int, url string, indexSuffix string, filePrefix string, processCount int, timeRange int) {
+func StartIngestion(totalEvents int, batchSize int, url string, indexSuffix string, processCount int) {
 	log.Println("Starting ingestion at ", url, "...")
 	var wg sync.WaitGroup
 	startTime := time.Now()
 	totalEventsPerProcess := totalEvents / processCount
-	timestamp := int(time.Now().Unix())
-	timeIncrement := (timeRange * 1000) / totalEventsPerProcess
-	eventIncrement := 1
-	if timeIncrement <= 0 {
-		eventIncrement = totalEventsPerProcess / (timeRange * 1000)
-		timeIncrement = 1
-	}
+
+	ticker := time.NewTicker(time.Minute)
+	done := make(chan bool)
+	totalSent := uint64(0)
 	for i := 0; i < processCount; i++ {
-		fileName := fmt.Sprintf("%s-%d.json", filePrefix, i)
 		wg.Add(1)
-		go runIngestion(&wg, fileName, url, totalEventsPerProcess, batchSize, i+1, timestamp, timeIncrement, eventIncrement, indexSuffix)
+		go runIngestion(&wg, url, totalEventsPerProcess, batchSize, i+1, indexSuffix, &totalSent)
 	}
-	wg.Wait()
+
+	go func() {
+		wg.Wait()
+		done <- true
+	}()
+
+	lastPrintedCount := uint64(0)
+readChannel:
+	for {
+		select {
+		case <-done:
+			break readChannel
+		case <-ticker.C:
+			totalTimeTaken := time.Since(startTime)
+			eventsPerSec := (totalSent - lastPrintedCount) / 60
+			log.Infof("Total elapsed time: %+v. Total sent events %+v. Events per minute %+v", totalTimeTaken, totalSent, eventsPerSec)
+			lastPrintedCount = totalSent
+		}
+	}
 	log.Println("Total logs ingested: ", totalEvents)
 	totalTimeTaken := time.Since(startTime)
-	log.Printf("Total Time Taken for ingestion %+v seconds", totalTimeTaken)
+	log.Printf("Total Time Taken for ingestion %+v", totalTimeTaken)
 }
