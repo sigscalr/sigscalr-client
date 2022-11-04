@@ -48,8 +48,6 @@ func sendRequest(lines string, url string) {
 	}
 }
 
-var numCols = 105
-
 // var frand fastrand.RNG
 
 func getMockBody() map[string]interface{} {
@@ -101,7 +99,7 @@ func runIngestion(wg *sync.WaitGroup, url string, totalEvents, batchSize, proces
 		log.Fatalf("Error marshalling mock body %+v", err)
 	}
 	stringSize := len(body) + int(unsafe.Sizeof(body))
-	log.Infof("Size of mock body is %+v", stringSize)
+	log.Infof("Size of event log line is %+v bytes", stringSize)
 
 	for eventCounter < totalEvents {
 
