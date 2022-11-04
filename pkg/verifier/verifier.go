@@ -10,6 +10,7 @@ import (
 	"time"
 	"unsafe"
 
+	"github.com/dustin/go-humanize"
 	jsoniter "github.com/json-iterator/go"
 	log "github.com/sirupsen/logrus"
 	"github.com/valyala/bytebufferpool"
@@ -122,8 +123,6 @@ func runIngestion(wg *sync.WaitGroup, url string, totalEvents, batchSize, proces
 		eventCounter += recsInBatch
 		atomic.AddUint64(ctr, uint64(recsInBatch))
 	}
-
-	log.Infof("Process=%d Finished ingestion of Total Records %d", processNo, totalEvents)
 }
 
 func populateActionLines(idxPrefix string, numIndices int) {
@@ -174,12 +173,19 @@ readChannel:
 			break readChannel
 		case <-ticker.C:
 			totalTimeTaken := time.Since(startTime)
-			eventsPerSec := (totalSent - lastPrintedCount) / 60
-			log.Infof("Total elapsed time:%+v. Total sent events %+v. Events per second:%+v", totalTimeTaken, totalSent, eventsPerSec)
+			eventsPerSec := int64((totalSent - lastPrintedCount) / 60)
+			log.Infof("Total elapsed time:%+v. Total sent events %+v. Events per second:%+v", totalTimeTaken, humanize.Comma(int64(totalSent)), humanize.Comma(eventsPerSec))
 			lastPrintedCount = totalSent
 		}
 	}
 	log.Println("Total logs ingested: ", totalEvents)
 	totalTimeTaken := time.Since(startTime)
-	log.Printf("Total Time Taken for ingestion %+v", totalTimeTaken)
+
+	numSeconds := int(totalTimeTaken.Seconds())
+	if numSeconds == 0 {
+		log.Printf("Total Time Taken for ingestion %+v", totalTimeTaken)
+	} else {
+		eventsPerSecond := int64(totalEvents / numSeconds)
+		log.Printf("Total Time Taken for ingestion %+v. Average events per second=%+v", totalTimeTaken, humanize.Comma(eventsPerSecond))
+	}
 }
