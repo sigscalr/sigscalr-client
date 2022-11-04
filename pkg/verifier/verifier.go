@@ -8,6 +8,7 @@ import (
 	"sync"
 	"sync/atomic"
 	"time"
+	"unsafe"
 
 	jsoniter "github.com/json-iterator/go"
 	log "github.com/sirupsen/logrus"
@@ -99,6 +100,8 @@ func runIngestion(wg *sync.WaitGroup, url string, totalEvents, batchSize, proces
 	if err != nil {
 		log.Fatalf("Error marshalling mock body %+v", err)
 	}
+	stringSize := len(body) + int(unsafe.Sizeof(body))
+	log.Infof("Size of mock body is %+v", stringSize)
 
 	for eventCounter < totalEvents {
 
@@ -142,8 +145,8 @@ readChannel:
 			break readChannel
 		case <-ticker.C:
 			totalTimeTaken := time.Since(startTime)
-			eventsPerMin := totalSent - lastPrintedCount
-			log.Infof("Total elapsed time: %+v. Total sent events %+v. Events per minute %+v", totalTimeTaken, totalSent, eventsPerMin)
+			eventsPerSec := (totalSent - lastPrintedCount) / 60
+			log.Infof("Total elapsed time: %+v. Total sent events %+v. Events per minute %+v", totalTimeTaken, totalSent, eventsPerSec)
 			lastPrintedCount = totalSent
 		}
 	}
