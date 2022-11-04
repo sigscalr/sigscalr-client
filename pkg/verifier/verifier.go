@@ -74,12 +74,11 @@ func getMockBody() map[string]interface{} {
 	return ev
 }
 
-func generateBulkBody(recs int, body []byte, idx string) string {
+func generateBulkBody(recs int, actionLine string, body []byte, idx string) string {
 	bb := bytebufferpool.Get()
 	defer bytebufferpool.Put(bb)
 
 	for i := 0; i < recs; i++ {
-		actionLine := getActionLine(i)
 		bb.WriteString(actionLine)
 		bb.Write(body)
 		bb.WriteString("\n")
@@ -107,13 +106,16 @@ func runIngestion(wg *sync.WaitGroup, url string, totalEvents, batchSize, proces
 		},
 	}
 
+	i := 0
 	for eventCounter < totalEvents {
 
 		recsInBatch := batchSize
 		if eventCounter+batchSize > totalEvents {
 			recsInBatch = totalEvents - eventCounter
 		}
-		payload := generateBulkBody(recsInBatch, body, indexName)
+		actionLine := getActionLine(i)
+		i++
+		payload := generateBulkBody(recsInBatch, actionLine, body, indexName)
 		sendRequest(client, payload, url)
 		eventCounter += recsInBatch
 		atomic.AddUint64(ctr, uint64(recsInBatch))
