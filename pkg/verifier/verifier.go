@@ -51,7 +51,8 @@ var numCols = 105
 
 // var frand fastrand.RNG
 
-func updateMockBody(ev map[string]interface{}) {
+func getMockBody() map[string]interface{} {
+	ev := make(map[string]interface{})
 	ts := time.Now().Unix()
 	ev["logset"] = "t1"
 	ev["traffic_flags"] = 8193
@@ -73,38 +74,39 @@ func updateMockBody(ev map[string]interface{}) {
 	ev["dstuser"] = "funccompanysaf3ti"
 	ev["seqno"] = 6922966563614901991
 	ev["tunneled-app"] = "gtpv1-c"
+	return ev
 }
 
-func generateBulkBody(recs int, idx string) string {
+func generateBulkBody(recs int, body []byte, idx string) string {
 	actionLine := "{\"index\": {\"_index\": \"" + idx + "\", \"_type\": \"_doc\"}}\n"
 	bb := bytebufferpool.Get()
 	defer bytebufferpool.Put(bb)
 
-	m := make(map[string]interface{}, numCols)
 	for i := 0; i < recs; i++ {
 		bb.WriteString(actionLine)
-		updateMockBody(m)
-		retVal, err := json.Marshal(m)
-		if err != nil {
-			log.Fatalf("Error marshalling mock body %+v", err)
-		}
-		bb.Write(retVal)
+		bb.Write(body)
 	}
-	retVal := bb.String()
-	return retVal
+	payLoad := bb.String()
+	return payLoad
 }
 
 func runIngestion(wg *sync.WaitGroup, url string, totalEvents, batchSize, processNo int, indexSuffix string, ctr *uint64) {
 	defer wg.Done()
 	eventCounter := 0
 	indexName := fmt.Sprintf("%v", indexSuffix)
+	m := getMockBody()
+	body, err := json.Marshal(m)
+	if err != nil {
+		log.Fatalf("Error marshalling mock body %+v", err)
+	}
+
 	for eventCounter < totalEvents {
 
 		recsInBatch := batchSize
 		if eventCounter+batchSize > totalEvents {
 			recsInBatch = totalEvents - eventCounter
 		}
-		payload := generateBulkBody(recsInBatch, indexName)
+		payload := generateBulkBody(recsInBatch, body, indexName)
 		sendRequest(payload, url)
 		eventCounter += recsInBatch
 		atomic.AddUint64(ctr, uint64(recsInBatch))
