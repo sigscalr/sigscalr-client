@@ -17,15 +17,17 @@ var ingestCmd = &cobra.Command{
 		dest, _ := cmd.Flags().GetString("dest")
 		totalEvents, _ := cmd.Flags().GetInt("totalEvents")
 		batchSize, _ := cmd.Flags().GetInt("batchSize")
-		indexName, _ := cmd.Flags().GetString("indexName")
+		indexPrefix, _ := cmd.Flags().GetString("indexPrefix")
+		numIndices, _ := cmd.Flags().GetInt("numIndices")
 
 		log.Infof("processCount : %+v\n", processCount)
 		log.Infof("dest : %+v\n", dest)
 		log.Infof("totalEvents : %+v\n", totalEvents)
 		log.Infof("batchSize : %+v\n", batchSize)
-		log.Infof("indexName : %+v\n", indexName)
+		log.Infof("indexPrefix : %+v\n", indexPrefix)
+		log.Infof("numIndices : %+v\n", numIndices)
 
-		verifier.StartIngestion(totalEvents, batchSize, dest, indexName, processCount)
+		verifier.StartIngestion(totalEvents, batchSize, dest, indexPrefix, numIndices, processCount)
 	},
 }
 
@@ -35,5 +37,6 @@ func init() {
 	ingestCmd.PersistentFlags().StringP("dest", "d", "", "Destination URL")
 	ingestCmd.PersistentFlags().IntP("totalEvents", "t", 1000000, "Total number of events")
 	ingestCmd.PersistentFlags().IntP("batchSize", "b", 100, "Batch size")
-	ingestCmd.PersistentFlags().StringP("indexName", "i", "index", "index name")
+	ingestCmd.PersistentFlags().StringP("indexPrefix", "i", "ind", "index prefix")
+	ingestCmd.PersistentFlags().IntP("numIndices", "n", 1, "number of indices to ingest to")
 }

@@ -20,8 +20,9 @@ const INDEX = "verifier"
 const PRINT_FREQ = 100_000
 
 var json = jsoniter.ConfigCompatibleWithStandardLibrary
+var actionLines []string = []string{}
 
-func sendRequest(lines string, url string) {
+func sendRequest(client *http.Client, lines string, url string) {
 
 	buf := bytes.NewBuffer([]byte(lines))
 
@@ -34,9 +35,6 @@ func sendRequest(lines string, url string) {
 	if err != nil {
 		log.Fatalf("sendRequest: http.NewRequest ERROR: %v", err)
 	}
-
-	client := &http.Client{}
-
 	resp, err := client.Do(req)
 	if err != nil {
 		log.Fatalf("sendRequest: client.Do ERROR: %v", err)
@@ -77,16 +75,21 @@ func getMockBody() map[string]interface{} {
 }
 
 func generateBulkBody(recs int, body []byte, idx string) string {
-	actionLine := "{\"index\": {\"_index\": \"" + idx + "\", \"_type\": \"_doc\"}}\n"
 	bb := bytebufferpool.Get()
 	defer bytebufferpool.Put(bb)
 
 	for i := 0; i < recs; i++ {
+		actionLine := getActionLine(i)
 		bb.WriteString(actionLine)
 		bb.Write(body)
+		bb.WriteString("\n")
 	}
 	payLoad := bb.String()
 	return payLoad
+}
+
+func getActionLine(i int) string {
+	return actionLines[i%len(actionLines)]
 }
 
 func runIngestion(wg *sync.WaitGroup, url string, totalEvents, batchSize, processNo int, indexSuffix string, ctr *uint64) {
@@ -98,8 +101,11 @@ func runIngestion(wg *sync.WaitGroup, url string, totalEvents, batchSize, proces
 	if err != nil {
 		log.Fatalf("Error marshalling mock body %+v", err)
 	}
-	stringSize := len(body) + int(unsafe.Sizeof(body))
-	log.Infof("Size of event log line is %+v bytes", stringSize)
+	client := &http.Client{
+		Transport: &http.Transport{
+			MaxConnsPerHost: 1,
+		},
+	}
 
 	for eventCounter < totalEvents {
 
@@ -108,7 +114,7 @@ func runIngestion(wg *sync.WaitGroup, url string, totalEvents, batchSize, proces
 			recsInBatch = totalEvents - eventCounter
 		}
 		payload := generateBulkBody(recsInBatch, body, indexName)
-		sendRequest(payload, url)
+		sendRequest(client, payload, url)
 		eventCounter += recsInBatch
 		atomic.AddUint64(ctr, uint64(recsInBatch))
 	}
@@ -116,7 +122,19 @@ func runIngestion(wg *sync.WaitGroup, url string, totalEvents, batchSize, proces
 	log.Infof("Process=%d Finished ingestion of Total Records %d", processNo, totalEvents)
 }
 
-func StartIngestion(totalEvents int, batchSize int, url string, indexSuffix string, processCount int) {
+func populateActionLines(idxPrefix string, numIndices int) {
+	if numIndices == 0 {
+		log.Fatalf("number of indices cannot be zero!")
+	}
+	actionLines = make([]string, numIndices)
+	for i := 0; i < numIndices; i++ {
+		idx := fmt.Sprintf("%s-%d", idxPrefix, i)
+		actionLine := "{\"index\": {\"_index\": \"" + idx + "\", \"_type\": \"_doc\"}}\n"
+		actionLines[i] = actionLine
+	}
+}
+
+func StartIngestion(totalEvents int, batchSize int, url string, indexPrefix string, numIndices, processCount int) {
 	log.Println("Starting ingestion at ", url, "...")
 	var wg sync.WaitGroup
 	startTime := time.Now()
@@ -125,10 +143,19 @@ func StartIngestion(totalEvents int, batchSize int, url string, indexSuffix stri
 	ticker := time.NewTicker(time.Minute)
 	done := make(chan bool)
 	totalSent := uint64(0)
+	populateActionLines(indexPrefix, numIndices)
+
 	for i := 0; i < processCount; i++ {
 		wg.Add(1)
-		go runIngestion(&wg, url, totalEventsPerProcess, batchSize, i+1, indexSuffix, &totalSent)
+		go runIngestion(&wg, url, totalEventsPerProcess, batchSize, i+1, indexPrefix, &totalSent)
 	}
+	m := getMockBody()
+	body, err := json.Marshal(m)
+	if err != nil {
+		log.Fatalf("Error marshalling mock body %+v", err)
+	}
+	stringSize := len(body) + int(unsafe.Sizeof(body))
+	log.Infof("Size of event log line is %+v bytes", stringSize)
 
 	go func() {
 		wg.Wait()
@@ -144,7 +171,7 @@ readChannel:
 		case <-ticker.C:
 			totalTimeTaken := time.Since(startTime)
 			eventsPerSec := (totalSent - lastPrintedCount) / 60
-			log.Infof("Total elapsed time: %+v. Total sent events %+v. Events per minute %+v", totalTimeTaken, totalSent, eventsPerSec)
+			log.Infof("Total elapsed time:%+v. Total sent events %+v. Events per second:%+v", totalTimeTaken, totalSent, eventsPerSec)
 			lastPrintedCount = totalSent
 		}
 	}
