@@ -15,7 +15,9 @@ func Benchmark_GenerateBody(b *testing.B) {
 	if err != nil {
 		log.Fatalf("Error marshalling mock body %+v", err)
 	}
+	populateActionLines("test", 1)
+	actionLine := getActionLine(0)
 	for i := 0; i < 10_000; i++ {
-		generateBulkBody(500, body, "test")
+		generateBulkBody(500, actionLine, body)
 	}
 }
