@@ -3,6 +3,7 @@ module verifier
 go 1.17
 
 require (
+	github.com/dustin/go-humanize v1.0.0
 	github.com/json-iterator/go v1.1.12
 	github.com/sirupsen/logrus v1.8.1
 	github.com/spf13/cobra v1.4.0
@@ -10,7 +11,6 @@ require (
 )
 
 require (
-	github.com/dustin/go-humanize v1.0.0 // indirect
 	github.com/inconshreveable/mousetrap v1.0.0 // indirect
 	github.com/modern-go/concurrent v0.0.0-20180228061459-e0a39a4cb421 // indirect
 	github.com/modern-go/reflect2 v1.0.2 // indirect

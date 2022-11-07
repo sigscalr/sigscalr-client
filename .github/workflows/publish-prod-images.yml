@@ -1,0 +1,32 @@
+name: sigclient-tools-release
+on:
+  push:
+    branches:
+      - 'ghflow'
+jobs:
+  sigclient-tool-binaries:
+    runs-on: ubuntu-latest
+    environment: build-environment
+    permissions:
+      id-token: write
+      contents: read
+    steps:
+      -
+        name: Checkout
+        uses: actions/checkout@v3
+      -
+        name: Setup go
+        uses: actions/setup-go@v3
+        with:
+          go-version: '>=1.17.0'
+      -
+        name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v1
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: us-east-1
+      -
+        name: Package SigClient
+        run: |
+          ./package-sigclient.sh -b s3://sigscalr-releases -p linux/amd64,linux/arm64
