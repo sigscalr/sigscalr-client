@@ -2,7 +2,7 @@ name: sigclient-tools-release
 on:
   push:
     branches:
-      - 'main'
+      - 'ghflow'
 jobs:
   sigclient-tool-binaries:
     runs-on: ubuntu-latest
