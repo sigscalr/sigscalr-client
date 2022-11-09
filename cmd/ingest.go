@@ -58,5 +58,5 @@ func init() {
 	ingestCmd.PersistentFlags().IntP("batchSize", "b", 100, "Batch size")
 	ingestCmd.PersistentFlags().StringP("indexPrefix", "i", "ind", "index prefix")
 	ingestCmd.PersistentFlags().IntP("numIndices", "n", 1, "number of indices to ingest to")
-	ingestCmd.PersistentFlags().String("data", "", "path to json file to use as sent events")
+	ingestCmd.PersistentFlags().String("filePath", "x", "path to json file to use as sent events")
 }
