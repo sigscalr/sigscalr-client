@@ -15,4 +15,5 @@ Flags:
   -i, --ind string     index name (default "index")
   -n, --n int          Total number of events (default 1000000)
   -p, --process int    Number of parallel process to ingest data from different files. (default 1)
+  --data string        Path to json file of events to ingest. If not provided, a static event will be sent. This file should have a json per line
 ```

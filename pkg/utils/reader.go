@@ -4,6 +4,7 @@ import (
 	"bufio"
 	"encoding/json"
 	"errors"
+	"io"
 	"os"
 	"sync"
 	"time"
@@ -32,6 +33,17 @@ type FileReader struct {
 	nextLogLines      [][]byte
 	isChunkPrefetched bool
 	asyncPrefetch     bool // is the chunk currenly being prefetched?
+}
+
+type readCounter struct {
+	io.Reader
+	BytesRead int
+}
+
+func (r *readCounter) Read(p []byte) (int, error) {
+	n, err := r.Reader.Read(p)
+	r.BytesRead += n
+	return n, err
 }
 
 // Repeats the same log line each time
@@ -81,7 +93,7 @@ func (sr *StaticReader) GetLogLine() ([]byte, error) {
 	return sr.logLine, nil
 }
 
-var chunkSize int = 10_000
+var chunkSize int = 100_000
 
 func (fr *FileReader) Init(fName string) error {
 	fr.file = fName
@@ -89,27 +101,25 @@ func (fr *FileReader) Init(fName string) error {
 	fr.logLines = make([][]byte, 0)
 	fr.nextLogLines = make([][]byte, 0)
 	fr.isChunkPrefetched = false
+	fr.asyncPrefetch = false
 	fr.editLock = &sync.Mutex{}
 	if _, err := os.Stat(fName); errors.Is(err, os.ErrNotExist) {
 		return err
 	}
-	err := fr.prefetchChunk()
+	log.Infof("initalizing file reader...")
+	err := fr.swapChunks()
 	if err != nil {
 		return err
 	}
-	err = fr.swapChunks()
-	if err != nil {
-		return err
-	}
-
+	log.Infof("file reader initalized")
 	return nil
 }
 
 func (fr *FileReader) GetLogLine() ([]byte, error) {
 	fr.editLock.Lock()
 	defer fr.editLock.Unlock()
-	if fr.currIdx > len(fr.logLines)-1 {
-		err := fr.prefetchChunk()
+	if fr.currIdx >= len(fr.logLines)-1 {
+		err := fr.prefetchChunk(false)
 		if err != nil {
 			return []byte{}, err
 		}
@@ -121,18 +131,20 @@ func (fr *FileReader) GetLogLine() ([]byte, error) {
 	retVal := fr.logLines[fr.currIdx]
 	fr.currIdx++
 	if fr.currIdx > len(fr.logLines)/2 {
-		go fr.prefetchChunk()
-
+		go fr.prefetchChunk(false)
 	}
 	return retVal, nil
 }
 
 func (fr *FileReader) swapChunks() error {
-	err := fr.prefetchChunk()
+	err := fr.prefetchChunk(false)
 	if err != nil {
 		return err
 	}
-	fr.nextLogLines, fr.logLines = fr.logLines, fr.nextLogLines
+	for fr.asyncPrefetch {
+		time.Sleep(100 * time.Millisecond)
+	}
+	fr.logLines, fr.nextLogLines = fr.nextLogLines, fr.logLines
 	fr.nextLogLines = make([][]byte, 0)
 	fr.currIdx = 0
 	fr.isChunkPrefetched = false
@@ -140,37 +152,32 @@ func (fr *FileReader) swapChunks() error {
 }
 
 // function will be called multiple times & will check if the next slice is already pre loaded
-func (fr *FileReader) prefetchChunk() error {
+func (fr *FileReader) prefetchChunk(override bool) error {
 	if fr.isChunkPrefetched {
 		return nil
 	}
-	if fr.asyncPrefetch {
+	if fr.asyncPrefetch || override {
 		return nil
 	}
-
 	fr.asyncPrefetch = true
 	defer func() { fr.asyncPrefetch = false }()
-
 	fd, err := os.Open(fr.file)
 	if err != nil {
 		log.Errorf("Failed to open file %s: %+v", fr.file, err)
+		return err
 	}
 	defer fd.Close()
-
 	fd.Seek(fr.filePosition, 0)
-	fileScanner := bufio.NewScanner(fd)
-	pos := fr.filePosition
-	scanLines := func(data []byte, atEOF bool) (advance int, token []byte, err error) {
-		advance, token, err = bufio.ScanLines(data, atEOF)
-		pos += int64(advance)
-		return
-	}
-	fileScanner.Split(scanLines)
+	b := &readCounter{Reader: fd}
+	fileScanner := bufio.NewScanner(b)
 	tmpMap := make(map[string]interface{})
+	ctr := 0
 	for fileScanner.Scan() {
+		ctr++
 		json.Unmarshal(fileScanner.Bytes(), &tmpMap)
 		logs, err := json.Marshal(tmpMap)
 		if err != nil {
+			log.Errorf("Failed to marshal log entry %+v: %+v", tmpMap, err)
 			return err
 		}
 		fr.nextLogLines = append(fr.nextLogLines, logs)
@@ -179,11 +186,16 @@ func (fr *FileReader) prefetchChunk() error {
 			break
 		}
 	}
-	fr.filePosition = pos
-	if len(fileScanner.Text()) <= chunkSize {
+
+	if err := fileScanner.Err(); err != nil {
+		log.Errorf("error in file scanner %+v", err)
+		return err
+	}
+	fr.filePosition += int64(b.BytesRead)
+	if len(fr.nextLogLines) <= chunkSize {
 		// this will only happen if we reached the end of the file before filling the chunk
 		fr.filePosition = 0
-		return fr.prefetchChunk()
+		return fr.prefetchChunk(true)
 	}
 	return nil
 }
