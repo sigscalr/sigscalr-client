@@ -106,12 +106,10 @@ func (fr *FileReader) Init(fName string) error {
 	if _, err := os.Stat(fName); errors.Is(err, os.ErrNotExist) {
 		return err
 	}
-	log.Infof("initalizing file reader...")
 	err := fr.swapChunks()
 	if err != nil {
 		return err
 	}
-	log.Infof("file reader initalized")
 	return nil
 }
 
