@@ -1,9 +1,10 @@
 package cmd
 
 import (
-	log "github.com/sirupsen/logrus"
+	"verifier/pkg/ingest"
+	"verifier/pkg/utils"
 
-	verifier "verifier/pkg/verifier"
+	log "github.com/sirupsen/logrus"
 
 	"github.com/spf13/cobra"
 )
@@ -19,6 +20,7 @@ var ingestCmd = &cobra.Command{
 		batchSize, _ := cmd.Flags().GetInt("batchSize")
 		indexPrefix, _ := cmd.Flags().GetString("indexPrefix")
 		numIndices, _ := cmd.Flags().GetInt("numIndices")
+		dataFile, _ := cmd.Flags().GetString("data")
 
 		log.Infof("processCount : %+v\n", processCount)
 		log.Infof("dest : %+v\n", dest)
@@ -26,9 +28,26 @@ var ingestCmd = &cobra.Command{
 		log.Infof("batchSize : %+v\n", batchSize)
 		log.Infof("indexPrefix : %+v\n", indexPrefix)
 		log.Infof("numIndices : %+v\n", numIndices)
+		reader, err := getReaderFromArgs(dataFile)
+		if err != nil {
+			log.Fatalf("Failed to initalize reader! %v", err)
+		}
 
-		verifier.StartIngestion(totalEvents, batchSize, dest, indexPrefix, numIndices, processCount)
+		ingest.StartIngestion(reader, totalEvents, batchSize, dest, indexPrefix, numIndices, processCount)
 	},
+}
+
+func getReaderFromArgs(str string) (utils.Reader, error) {
+	var rdr utils.Reader
+	if str == "" {
+		log.Infof("Initializing static reader")
+		rdr = &utils.StaticReader{}
+	} else {
+		log.Infof("Initializing file reader from %s", str)
+		rdr = &utils.FileReader{}
+	}
+	err := rdr.Init(str)
+	return rdr, err
 }
 
 func init() {
@@ -39,4 +58,5 @@ func init() {
 	ingestCmd.PersistentFlags().IntP("batchSize", "b", 100, "Batch size")
 	ingestCmd.PersistentFlags().StringP("indexPrefix", "i", "ind", "index prefix")
 	ingestCmd.PersistentFlags().IntP("numIndices", "n", 1, "number of indices to ingest to")
+	ingestCmd.PersistentFlags().String("data", "", "path to json file to use as sent events")
 }
