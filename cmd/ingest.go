@@ -53,10 +53,10 @@ func getReaderFromArgs(str string) (utils.Reader, error) {
 func init() {
 	rootCmd.AddCommand(ingestCmd)
 	ingestCmd.PersistentFlags().IntP("processCount", "p", 1, "Number of parallel process to ingest data from.")
-	ingestCmd.PersistentFlags().StringP("dest", "d", "", "Destination URL")
-	ingestCmd.PersistentFlags().IntP("totalEvents", "t", 1000000, "Total number of events")
+	ingestCmd.PersistentFlags().StringP("dest", "d", "", "Destination URL. Client will append /bulk")
+	ingestCmd.PersistentFlags().IntP("totalEvents", "t", 1000000, "Total number of events to send")
 	ingestCmd.PersistentFlags().IntP("batchSize", "b", 100, "Batch size")
 	ingestCmd.PersistentFlags().StringP("indexPrefix", "i", "ind", "index prefix")
 	ingestCmd.PersistentFlags().IntP("numIndices", "n", 1, "number of indices to ingest to")
-	ingestCmd.PersistentFlags().StringP("filePath", "x", "", "path to json file to use as sent events")
+	ingestCmd.PersistentFlags().StringP("filePath", "x", "", "path to json file to use as logs")
 }
