@@ -1,4 +1,4 @@
-package verifier
+package ingest
 
 import (
 	"bytes"
@@ -8,15 +8,13 @@ import (
 	"sync"
 	"sync/atomic"
 	"time"
-	"unsafe"
+	"verifier/pkg/utils"
 
 	"github.com/dustin/go-humanize"
 	jsoniter "github.com/json-iterator/go"
 	log "github.com/sirupsen/logrus"
 	"github.com/valyala/bytebufferpool"
 )
-
-const INDEX = "verifier"
 
 const PRINT_FREQ = 100_000
 
@@ -49,57 +47,30 @@ func sendRequest(client *http.Client, lines string, url string) {
 
 // var frand fastrand.RNG
 
-func getMockBody() map[string]interface{} {
-	ev := make(map[string]interface{})
-	ts := time.Now().Unix()
-	ev["logset"] = "t1"
-	ev["traffic_flags"] = 8193
-	ev["high_res_timestamp"] = ts
-	ev["parent_start_time"] = ts
-	ev["inbound_if"] = "1103823372288"
-	ev["pod_name"] = "tam-dp-77754f4"
-	ev["dstloc"] = "west-coast"
-	ev["natdport"] = 17856
-	ev["time_generated"] = ts
-	ev["vpadding"] = 0
-	ev["sdwan_fec_data"] = 0
-	ev["chunks_sent"] = 67
-	ev["offloaded"] = 0
-	ev["dst_model"] = "S9"
-	ev["to"] = "ethernet4Zone-test4"
-	ev["monitor_tag_imei"] = "US Social"
-	ev["xff_ip"] = "00000000000000000000ffff02020202"
-	ev["dstuser"] = "funccompanysaf3ti"
-	ev["seqno"] = 6922966563614901991
-	ev["tunneled-app"] = "gtpv1-c"
-	return ev
-}
-
-func generateBulkBody(recs int, actionLine string, body []byte) string {
+func generateBulkBody(recs int, actionLine string, rdr utils.Reader) (string, error) {
 	bb := bytebufferpool.Get()
 	defer bytebufferpool.Put(bb)
 
 	for i := 0; i < recs; i++ {
 		bb.WriteString(actionLine)
-		bb.Write(body)
+		log, err := rdr.GetLogLine()
+		if err != nil {
+			return "", err
+		}
+		bb.Write(log)
 		bb.WriteString("\n")
 	}
 	payLoad := bb.String()
-	return payLoad
+	return payLoad, nil
 }
 
 func getActionLine(i int) string {
 	return actionLines[i%len(actionLines)]
 }
 
-func runIngestion(wg *sync.WaitGroup, url string, totalEvents, batchSize, processNo int, indexSuffix string, ctr *uint64) {
+func runIngestion(rdr utils.Reader, wg *sync.WaitGroup, url string, totalEvents, batchSize, processNo int, indexSuffix string, ctr *uint64) {
 	defer wg.Done()
 	eventCounter := 0
-	m := getMockBody()
-	body, err := json.Marshal(m)
-	if err != nil {
-		log.Fatalf("Error marshalling mock body %+v", err)
-	}
 	t := http.DefaultTransport.(*http.Transport).Clone()
 	t.MaxIdleConns = 500
 	t.MaxConnsPerHost = 100
@@ -118,7 +89,11 @@ func runIngestion(wg *sync.WaitGroup, url string, totalEvents, batchSize, proces
 		}
 		actionLine := getActionLine(i)
 		i++
-		payload := generateBulkBody(recsInBatch, actionLine, body)
+		payload, err := generateBulkBody(recsInBatch, actionLine, rdr)
+		if err != nil {
+			log.Errorf("Error generating bulk body!: %v", err)
+			return
+		}
 		sendRequest(client, payload, url)
 		eventCounter += recsInBatch
 		atomic.AddUint64(ctr, uint64(recsInBatch))
@@ -137,7 +112,7 @@ func populateActionLines(idxPrefix string, numIndices int) {
 	}
 }
 
-func StartIngestion(totalEvents int, batchSize int, url string, indexPrefix string, numIndices, processCount int) {
+func StartIngestion(rdr utils.Reader, totalEvents int, batchSize int, url string, indexPrefix string, numIndices, processCount int) {
 	log.Println("Starting ingestion at ", url, "...")
 	var wg sync.WaitGroup
 	startTime := time.Now()
@@ -150,15 +125,8 @@ func StartIngestion(totalEvents int, batchSize int, url string, indexPrefix stri
 
 	for i := 0; i < processCount; i++ {
 		wg.Add(1)
-		go runIngestion(&wg, url, totalEventsPerProcess, batchSize, i+1, indexPrefix, &totalSent)
+		go runIngestion(rdr, &wg, url, totalEventsPerProcess, batchSize, i+1, indexPrefix, &totalSent)
 	}
-	m := getMockBody()
-	body, err := json.Marshal(m)
-	if err != nil {
-		log.Fatalf("Error marshalling mock body %+v", err)
-	}
-	stringSize := len(body) + int(unsafe.Sizeof(body))
-	log.Infof("Size of event log line is %+v bytes", stringSize)
 
 	go func() {
 		wg.Wait()
@@ -174,7 +142,7 @@ readChannel:
 		case <-ticker.C:
 			totalTimeTaken := time.Since(startTime)
 			eventsPerSec := int64((totalSent - lastPrintedCount) / 60)
-			log.Infof("Total elapsed time:%+v. Total sent events %+v. Events per second:%+v", totalTimeTaken, humanize.Comma(int64(totalSent)), humanize.Comma(eventsPerSec))
+			log.Infof("Total elapsed time:%s. Total sent events %+v. Events per second:%+v", totalTimeTaken, humanize.Comma(int64(totalSent)), humanize.Comma(eventsPerSec))
 			lastPrintedCount = totalSent
 		}
 	}
@@ -186,6 +154,6 @@ readChannel:
 		log.Printf("Total Time Taken for ingestion %+v", totalTimeTaken)
 	} else {
 		eventsPerSecond := int64(totalEvents / numSeconds)
-		log.Printf("Total Time Taken for ingestion %+v. Average events per second=%+v", totalTimeTaken, humanize.Comma(eventsPerSecond))
+		log.Printf("Total Time Taken for ingestion %s. Average events per second=%+v", totalTimeTaken, humanize.Comma(eventsPerSecond))
 	}
 }
