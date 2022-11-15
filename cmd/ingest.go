@@ -20,7 +20,7 @@ var ingestCmd = &cobra.Command{
 		batchSize, _ := cmd.Flags().GetInt("batchSize")
 		indexPrefix, _ := cmd.Flags().GetString("indexPrefix")
 		numIndices, _ := cmd.Flags().GetInt("numIndices")
-		dataFile, _ := cmd.Flags().GetString("data")
+		dataFile, _ := cmd.Flags().GetString("filePath")
 
 		log.Infof("processCount : %+v\n", processCount)
 		log.Infof("dest : %+v\n", dest)
@@ -28,6 +28,7 @@ var ingestCmd = &cobra.Command{
 		log.Infof("batchSize : %+v\n", batchSize)
 		log.Infof("indexPrefix : %+v\n", indexPrefix)
 		log.Infof("numIndices : %+v\n", numIndices)
+		log.Infof("dataFile : %+v\n", dataFile)
 		reader, err := getReaderFromArgs(dataFile)
 		if err != nil {
 			log.Fatalf("Failed to initalize reader! %v", err)
