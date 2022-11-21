@@ -115,7 +115,6 @@ func populateActionLines(idxPrefix string, numIndices int) {
 func StartIngestion(rdr utils.Reader, totalEvents int, batchSize int, url string, indexPrefix string, numIndices, processCount int) {
 	log.Println("Starting ingestion at ", url, "...")
 	var wg sync.WaitGroup
-	startTime := time.Now()
 	totalEventsPerProcess := totalEvents / processCount
 
 	ticker := time.NewTicker(time.Minute)
@@ -132,6 +131,7 @@ func StartIngestion(rdr utils.Reader, totalEvents int, batchSize int, url string
 		wg.Wait()
 		done <- true
 	}()
+	startTime := time.Now()
 
 	lastPrintedCount := uint64(0)
 readChannel:
