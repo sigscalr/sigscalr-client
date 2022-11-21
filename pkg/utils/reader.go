@@ -54,26 +54,26 @@ type StaticReader struct {
 func getMockBody() map[string]interface{} {
 	ev := make(map[string]interface{})
 	ts := time.Now().Unix()
-	ev["c1"] = "t1"
-	ev["c2"] = 8193
-	ev["c3"] = ts
-	ev["c4"] = ts
-	ev["c5"] = "1103823372288"
-	ev["c6"] = "tam-dp-77754f4"
-	ev["c7"] = "west-coast"
-	ev["c8"] = 17856
-	ev["c9"] = ts
-	ev["c10"] = 0
-	ev["c11"] = 0
-	ev["c12"] = 67
-	ev["c13"] = 0
-	ev["c14"] = "S9"
-	ev["c15"] = "ethernet4Zone-test4"
-	ev["c16"] = "US Social"
-	ev["c17"] = "00000000000000000000ffff02020202"
-	ev["c18"] = "funccompanysaf3ti"
-	ev["c19"] = 6922966563614901991
-	ev["c20"] = "gtpv1-c"
+	ev["a"] = "t1"
+	ev["b"] = 8193
+	ev["c"] = ts
+	ev["d"] = ts
+	ev["e"] = "1103823372288"
+	ev["f"] = "tam-dp-77754f4"
+	ev["g"] = "west-coast"
+	ev["h"] = 17856
+	ev["i"] = ts
+	ev["j"] = 0
+	ev["k"] = 0
+	ev["l"] = 67
+	ev["m"] = 0
+	ev["n"] = "S9"
+	ev["o"] = "ethernet4Zone-test4"
+	ev["p"] = "US Social"
+	ev["q"] = "00000000000000000000ffff02020202"
+	ev["r"] = "funccompanysaf3ti"
+	ev["s"] = 6922966563614901991
+	ev["t"] = "gtpv1-c"
 	return ev
 }
 
