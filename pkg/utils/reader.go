@@ -54,26 +54,26 @@ type StaticReader struct {
 func getMockBody() map[string]interface{} {
 	ev := make(map[string]interface{})
 	ts := time.Now().Unix()
-	ev["logset"] = "t1"
-	ev["traffic_flags"] = 8193
-	ev["high_res_timestamp"] = ts
-	ev["parent_start_time"] = ts
-	ev["inbound_if"] = "1103823372288"
-	ev["pod_name"] = "tam-dp-77754f4"
-	ev["dstloc"] = "west-coast"
-	ev["natdport"] = 17856
-	ev["time_generated"] = ts
-	ev["vpadding"] = 0
-	ev["sdwan_fec_data"] = 0
-	ev["chunks_sent"] = 67
-	ev["offloaded"] = 0
-	ev["dst_model"] = "S9"
-	ev["to"] = "ethernet4Zone-test4"
-	ev["monitor_tag_imei"] = "US Social"
-	ev["xff_ip"] = "00000000000000000000ffff02020202"
-	ev["dstuser"] = "funccompanysaf3ti"
-	ev["seqno"] = 6922966563614901991
-	ev["tunneled-app"] = "gtpv1-c"
+	ev["c1"] = "t1"
+	ev["c2"] = 8193
+	ev["c3"] = ts
+	ev["c4"] = ts
+	ev["c5"] = "1103823372288"
+	ev["c6"] = "tam-dp-77754f4"
+	ev["c7"] = "west-coast"
+	ev["c8"] = 17856
+	ev["c9"] = ts
+	ev["c10"] = 0
+	ev["c11"] = 0
+	ev["c12"] = 67
+	ev["c13"] = 0
+	ev["c14"] = "S9"
+	ev["c15"] = "ethernet4Zone-test4"
+	ev["c16"] = "US Social"
+	ev["c17"] = "00000000000000000000ffff02020202"
+	ev["c18"] = "funccompanysaf3ti"
+	ev["c19"] = 6922966563614901991
+	ev["c20"] = "gtpv1-c"
 	return ev
 }
 
