@@ -11,14 +11,12 @@ import (
 	"verifier/pkg/utils"
 
 	"github.com/dustin/go-humanize"
-	jsoniter "github.com/json-iterator/go"
 	log "github.com/sirupsen/logrus"
 	"github.com/valyala/bytebufferpool"
 )
 
 const PRINT_FREQ = 100_000
 
-var json = jsoniter.ConfigCompatibleWithStandardLibrary
 var actionLines []string = []string{}
 
 func sendRequest(client *http.Client, lines string, url string) {

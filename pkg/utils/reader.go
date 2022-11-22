@@ -2,19 +2,24 @@ package utils
 
 import (
 	"bufio"
-	"encoding/json"
 	"errors"
+	"fmt"
 	"io"
 	"os"
 	"sync"
 	"time"
 	"unsafe"
 
+	"github.com/google/uuid"
+	jsoniter "github.com/json-iterator/go"
 	log "github.com/sirupsen/logrus"
+	"github.com/valyala/fastrand"
 )
 
+var json = jsoniter.ConfigFastest
+
 type Reader interface {
-	Init(fName string) error
+	Init(fName ...string) error
 	GetLogLine() ([]byte, error)
 }
 
@@ -51,34 +56,65 @@ type StaticReader struct {
 	logLine []byte
 }
 
-func getMockBody() map[string]interface{} {
+type DynamicReader struct {
+}
+
+var colf []string = []string{"iOS", "macOS", "windows", "android", "linux"}
+var colfOptions uint32 = uint32(len(colf))
+
+var colg []string = []string{"abc def", "ghi jkl", "mno pqr", "stu vwx", "yz"}
+var colgOptions uint32 = uint32(len(colg))
+
+var colh []string = []string{"us-east-1", "us-east-2", "us-west-1", "us-west-2", "ap-south-1", "eu-west-1", "me-south-1"}
+var colhOptions uint32 = uint32(len(colh))
+
+func generateRandomBody() map[string]interface{} {
 	ev := make(map[string]interface{})
 	ts := time.Now().Unix()
-	ev["a"] = "t1"
+
+	randNum := fastrand.Uint32n(1_000)
+	ev["a"] = fmt.Sprintf("batch-%d", randNum)
 	ev["b"] = 8193
 	ev["c"] = ts
-	ev["d"] = ts
 	ev["e"] = "1103823372288"
-	ev["f"] = "tam-dp-77754f4"
-	ev["g"] = "west-coast"
-	ev["h"] = 17856
-	ev["i"] = ts
-	ev["j"] = 0
-	ev["k"] = 0
-	ev["l"] = 67
-	ev["m"] = 0
-	ev["n"] = "S9"
-	ev["o"] = "ethernet4Zone-test4"
-	ev["p"] = "US Social"
-	ev["q"] = "00000000000000000000ffff02020202"
-	ev["r"] = "funccompanysaf3ti"
-	ev["s"] = 6922966563614901991
-	ev["t"] = "gtpv1-c"
+
+	fIdx := fastrand.Uint32n(colfOptions)
+	ev["f"] = colf[fIdx]
+
+	gIdx := fastrand.Uint32n(colgOptions)
+	ev["g"] = colg[gIdx]
+
+	hIdx := fastrand.Uint32n(colhOptions)
+	ev["h"] = colh[hIdx]
+	ev["i"] = uuid.NewString()
+	ev["j"] = fmt.Sprintf("S%d", ts%10)
+	ev["k"] = "ethernet4Zone-test4"
+	ev["l"] = fmt.Sprintf("group %d", ts%2)
+	ev["m"] = "00000000000000000000ffff02020202"
+	ev["n"] = "funccompanysaf3ti"
+	ev["o"] = 6922966563614901991
+	ev["p"] = "gtpv1-c"
 	return ev
 }
 
-func (r *StaticReader) Init(fName string) error {
-	m := getMockBody()
+func (r *DynamicReader) Init(fName ...string) error {
+	m := generateRandomBody()
+	body, err := json.Marshal(m)
+	if err != nil {
+		return err
+	}
+	stringSize := len(body) + int(unsafe.Sizeof(body))
+	log.Infof("Size of a random log line is %+v bytes", stringSize)
+	return nil
+}
+
+func (r *DynamicReader) GetLogLine() ([]byte, error) {
+	ll := generateRandomBody()
+	return json.Marshal(ll)
+}
+
+func (r *StaticReader) Init(fName ...string) error {
+	m := generateRandomBody()
 	body, err := json.Marshal(m)
 	if err != nil {
 		return err
@@ -95,15 +131,15 @@ func (sr *StaticReader) GetLogLine() ([]byte, error) {
 
 var chunkSize int = 100_000
 
-func (fr *FileReader) Init(fName string) error {
-	fr.file = fName
+func (fr *FileReader) Init(fName ...string) error {
+	fr.file = fName[0]
 	fr.filePosition = 0
 	fr.logLines = make([][]byte, 0)
 	fr.nextLogLines = make([][]byte, 0)
 	fr.isChunkPrefetched = false
 	fr.asyncPrefetch = false
 	fr.editLock = &sync.Mutex{}
-	if _, err := os.Stat(fName); errors.Is(err, os.ErrNotExist) {
+	if _, err := os.Stat(fName[0]); errors.Is(err, os.ErrNotExist) {
 		return err
 	}
 	err := fr.swapChunks()

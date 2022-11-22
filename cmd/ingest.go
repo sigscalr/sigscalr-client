@@ -1,6 +1,7 @@
 package cmd
 
 import (
+	"fmt"
 	"verifier/pkg/ingest"
 	"verifier/pkg/utils"
 
@@ -20,6 +21,7 @@ var ingestCmd = &cobra.Command{
 		batchSize, _ := cmd.Flags().GetInt("batchSize")
 		indexPrefix, _ := cmd.Flags().GetString("indexPrefix")
 		numIndices, _ := cmd.Flags().GetInt("numIndices")
+		generatorType, _ := cmd.Flags().GetString("generator")
 		dataFile, _ := cmd.Flags().GetString("filePath")
 
 		log.Infof("processCount : %+v\n", processCount)
@@ -28,8 +30,8 @@ var ingestCmd = &cobra.Command{
 		log.Infof("batchSize : %+v\n", batchSize)
 		log.Infof("indexPrefix : %+v\n", indexPrefix)
 		log.Infof("numIndices : %+v\n", numIndices)
-		log.Infof("dataFile : %+v\n", dataFile)
-		reader, err := getReaderFromArgs(dataFile)
+		log.Infof("generatorType : %+v\n", generatorType)
+		reader, err := getReaderFromArgs(generatorType, dataFile)
 		if err != nil {
 			log.Fatalf("Failed to initalize reader! %v", err)
 		}
@@ -38,14 +40,19 @@ var ingestCmd = &cobra.Command{
 	},
 }
 
-func getReaderFromArgs(str string) (utils.Reader, error) {
+func getReaderFromArgs(gentype, str string) (utils.Reader, error) {
 	var rdr utils.Reader
-	if str == "" {
+	switch gentype {
+	case "", "static":
 		log.Infof("Initializing static reader")
 		rdr = &utils.StaticReader{}
-	} else {
+	case "dynamic":
+		rdr = &utils.DynamicReader{}
+	case "file":
 		log.Infof("Initializing file reader from %s", str)
 		rdr = &utils.FileReader{}
+	default:
+		return nil, fmt.Errorf("unsupported reader type %s. Options=[static,dynamic,file]", gentype)
 	}
 	err := rdr.Init(str)
 	return rdr, err
@@ -59,5 +66,6 @@ func init() {
 	ingestCmd.PersistentFlags().IntP("batchSize", "b", 100, "Batch size")
 	ingestCmd.PersistentFlags().StringP("indexPrefix", "i", "ind", "index prefix")
 	ingestCmd.PersistentFlags().IntP("numIndices", "n", 1, "number of indices to ingest to")
+	ingestCmd.PersistentFlags().StringP("generator", "g", "static", "type of generator to use. Options=[static,dynamic,file]. If file is selected, -x/--filePath must be specified")
 	ingestCmd.PersistentFlags().StringP("filePath", "x", "", "path to json file to use as logs")
 }
