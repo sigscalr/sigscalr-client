@@ -58,7 +58,6 @@ type StaticReader struct {
 
 type DynamicReader struct {
 	baseBody map[string]interface{}
-	body     []byte
 }
 
 var cold []string = []string{"iOS", "macOS", "windows", "android", "linux"}
@@ -100,7 +99,6 @@ func (r *DynamicReader) Init(fName ...string) error {
 	r.baseBody = m
 	stringSize := len(body) + int(unsafe.Sizeof(body))
 	log.Infof("Size of a random log line is %+v bytes", stringSize)
-	r.body = body
 	return nil
 }
 
@@ -109,7 +107,7 @@ func (r *DynamicReader) GetLogLine() ([]byte, error) {
 	if err != nil {
 		return []byte{}, err
 	}
-	return r.body, nil
+	return json.Marshal(r.baseBody)
 }
 
 func (r *DynamicReader) randomizeDoc() error {
