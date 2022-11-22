@@ -67,7 +67,7 @@ func validateAndGetElapsedTime(qType queryTypes, esOutput map[string]interface{}
 				relation := rawTotal["relation"]
 				log.Infof("%s query: [%+v]ms. Hits: %+v %+v", qType.String(), etime, relation, value)
 			case string:
-				log.Infof("%s query: [%+v]ms. Hits: %+v %+v", qType.String(), etime, rawTotal)
+				log.Infof("%s query: [%+v]ms. Hits: %+v", qType.String(), etime, rawTotal)
 			default:
 				log.Fatalf("hits.total is not a map or string %+v", rawTotal)
 			}

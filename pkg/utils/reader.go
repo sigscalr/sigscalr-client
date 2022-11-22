@@ -174,7 +174,7 @@ func (fr *FileReader) GetLogLine() ([]byte, error) {
 	retVal := fr.logLines[fr.currIdx]
 	fr.currIdx++
 	if fr.currIdx > len(fr.logLines)/2 {
-		go fr.prefetchChunk(false)
+		go func() { _ = fr.prefetchChunk(false) }()
 	}
 	return retVal, nil
 }
@@ -210,14 +210,21 @@ func (fr *FileReader) prefetchChunk(override bool) error {
 		return err
 	}
 	defer fd.Close()
-	fd.Seek(fr.filePosition, 0)
+	_, err = fd.Seek(fr.filePosition, 0)
+	if err != nil {
+		return err
+	}
 	b := &readCounter{Reader: fd}
 	fileScanner := bufio.NewScanner(b)
 	tmpMap := make(map[string]interface{})
 	ctr := 0
 	for fileScanner.Scan() {
 		ctr++
-		json.Unmarshal(fileScanner.Bytes(), &tmpMap)
+		err := json.Unmarshal(fileScanner.Bytes(), &tmpMap)
+		if err != nil {
+			log.Errorf("Failed to unmarshal log entry %+v: %+v", tmpMap, err)
+			return err
+		}
 		logs, err := json.Marshal(tmpMap)
 		if err != nil {
 			log.Errorf("Failed to marshal log entry %+v: %+v", tmpMap, err)
