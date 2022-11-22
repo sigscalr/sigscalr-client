@@ -6,6 +6,7 @@ require (
 	github.com/dustin/go-humanize v1.0.0
 	github.com/google/uuid v1.3.0
 	github.com/json-iterator/go v1.1.12
+	github.com/montanaflynn/stats v0.6.6
 	github.com/sirupsen/logrus v1.8.1
 	github.com/spf13/cobra v1.4.0
 	github.com/valyala/bytebufferpool v1.0.0

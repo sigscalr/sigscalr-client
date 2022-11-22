@@ -3,6 +3,7 @@ package cmd
 import (
 	"fmt"
 	"verifier/pkg/ingest"
+	"verifier/pkg/query"
 	"verifier/pkg/utils"
 
 	log "github.com/sirupsen/logrus"
@@ -40,6 +41,23 @@ var ingestCmd = &cobra.Command{
 	},
 }
 
+var queryCmd = &cobra.Command{
+	Use:   "query",
+	Short: "send queries to SigScalr",
+	Run: func(cmd *cobra.Command, args []string) {
+		dest, _ := cmd.Flags().GetString("dest")
+		numIterations, _ := cmd.Flags().GetInt("count")
+		verbose, _ := cmd.Flags().GetBool("verbose")
+		indexPrefix, _ := cmd.Flags().GetString("indexPrefix")
+
+		log.Infof("dest : %+v\n", dest)
+		log.Infof("numIterations : %+v\n", numIterations)
+		log.Infof("indexPrefix : %+v\n", indexPrefix)
+		log.Infof("verbose : %+v\n", verbose)
+		query.StartQuery(dest, numIterations, indexPrefix, verbose)
+	},
+}
+
 func getReaderFromArgs(gentype, str string) (utils.Reader, error) {
 	var rdr utils.Reader
 	switch gentype {
@@ -59,13 +77,19 @@ func getReaderFromArgs(gentype, str string) (utils.Reader, error) {
 }
 
 func init() {
-	rootCmd.AddCommand(ingestCmd)
+	rootCmd.PersistentFlags().StringP("dest", "d", "", "ES Server URL.")
+	rootCmd.PersistentFlags().StringP("indexPrefix", "i", "ind", "index prefix")
+
 	ingestCmd.PersistentFlags().IntP("processCount", "p", 1, "Number of parallel process to ingest data from.")
-	ingestCmd.PersistentFlags().StringP("dest", "d", "", "Destination URL. Client will append /bulk")
 	ingestCmd.PersistentFlags().IntP("totalEvents", "t", 1000000, "Total number of events to send")
 	ingestCmd.PersistentFlags().IntP("batchSize", "b", 100, "Batch size")
-	ingestCmd.PersistentFlags().StringP("indexPrefix", "i", "ind", "index prefix")
 	ingestCmd.PersistentFlags().IntP("numIndices", "n", 1, "number of indices to ingest to")
 	ingestCmd.PersistentFlags().StringP("generator", "g", "static", "type of generator to use. Options=[static,dynamic,file]. If file is selected, -x/--filePath must be specified")
 	ingestCmd.PersistentFlags().StringP("filePath", "x", "", "path to json file to use as logs")
+
+	queryCmd.PersistentFlags().IntP("count", "c", 10, "number of times to run entire query suite")
+	queryCmd.Flags().BoolP("verbose", "v", false, "Verbose querying will output raw docs returned by queries")
+
+	rootCmd.AddCommand(ingestCmd)
+	rootCmd.AddCommand(queryCmd)
 }
