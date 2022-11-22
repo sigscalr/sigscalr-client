@@ -57,43 +57,37 @@ type StaticReader struct {
 }
 
 type DynamicReader struct {
+	baseBody map[string]interface{}
+	body     []byte
 }
 
-var colf []string = []string{"iOS", "macOS", "windows", "android", "linux"}
+var cold []string = []string{"iOS", "macOS", "windows", "android", "linux"}
+var coldOptions uint32 = uint32(len(cold))
+
+var cole []string = []string{"abc def", "ghi jkl", "mno pqr", "stu vwx", "yz"}
+var coleOptions uint32 = uint32(len(cole))
+
+var colf []string = []string{"us-east-1", "us-east-2", "us-west-1", "us-west-2", "ap-south-1", "eu-west-1", "me-south-1"}
 var colfOptions uint32 = uint32(len(colf))
-
-var colg []string = []string{"abc def", "ghi jkl", "mno pqr", "stu vwx", "yz"}
-var colgOptions uint32 = uint32(len(colg))
-
-var colh []string = []string{"us-east-1", "us-east-2", "us-west-1", "us-west-2", "ap-south-1", "eu-west-1", "me-south-1"}
-var colhOptions uint32 = uint32(len(colh))
 
 func generateRandomBody() map[string]interface{} {
 	ev := make(map[string]interface{})
-	ts := time.Now().Unix()
 
 	randNum := fastrand.Uint32n(1_000)
 	ev["a"] = fmt.Sprintf("batch-%d", randNum)
 	ev["b"] = 8193
-	ev["c"] = ts
-	ev["e"] = "1103823372288"
-
-	fIdx := fastrand.Uint32n(colfOptions)
-	ev["f"] = colf[fIdx]
-
-	gIdx := fastrand.Uint32n(colgOptions)
-	ev["g"] = colg[gIdx]
-
-	hIdx := fastrand.Uint32n(colhOptions)
-	ev["h"] = colh[hIdx]
-	ev["i"] = uuid.NewString()
-	ev["j"] = fmt.Sprintf("S%d", ts%10)
-	ev["k"] = "ethernet4Zone-test4"
-	ev["l"] = fmt.Sprintf("group %d", ts%2)
-	ev["m"] = "00000000000000000000ffff02020202"
-	ev["n"] = "funccompanysaf3ti"
-	ev["o"] = 6922966563614901991
-	ev["p"] = "gtpv1-c"
+	ev["c"] = "1103823372288"
+	ev["d"] = cold[fastrand.Uint32n(coldOptions)]
+	ev["e"] = cole[fastrand.Uint32n(coleOptions)]
+	ev["f"] = colf[fastrand.Uint32n(colfOptions)]
+	ev["g"] = uuid.NewString()
+	ev["h"] = fmt.Sprintf("S%d", fastrand.Uint32n(50))
+	ev["i"] = "ethernet4Zone-test4"
+	ev["j"] = fmt.Sprintf("group %d", fastrand.Uint32n(2))
+	ev["k"] = "00000000000000000000ffff02020202"
+	ev["l"] = "funccompanysaf3ti"
+	ev["m"] = 6922966563614901991
+	ev["n"] = "gtpv1-c"
 	return ev
 }
 
@@ -103,14 +97,30 @@ func (r *DynamicReader) Init(fName ...string) error {
 	if err != nil {
 		return err
 	}
+	r.baseBody = m
 	stringSize := len(body) + int(unsafe.Sizeof(body))
 	log.Infof("Size of a random log line is %+v bytes", stringSize)
+	r.body = body
 	return nil
 }
 
 func (r *DynamicReader) GetLogLine() ([]byte, error) {
-	ll := generateRandomBody()
-	return json.Marshal(ll)
+	err := r.randomizeDoc()
+	if err != nil {
+		return []byte{}, err
+	}
+	return r.body, nil
+}
+
+func (r *DynamicReader) randomizeDoc() error {
+	r.baseBody["a"] = fmt.Sprintf("batch-%d", fastrand.Uint32n(1_000))
+	r.baseBody["d"] = cold[fastrand.Uint32n(coldOptions)]
+	r.baseBody["e"] = cole[fastrand.Uint32n(coleOptions)]
+	r.baseBody["f"] = colf[fastrand.Uint32n(colfOptions)]
+	r.baseBody["g"] = uuid.NewString()
+	r.baseBody["h"] = fmt.Sprintf("S%d", fastrand.Uint32n(50))
+	r.baseBody["j"] = fmt.Sprintf("group %d", fastrand.Uint32n(2))
+	return nil
 }
 
 func (r *StaticReader) Init(fName ...string) error {
