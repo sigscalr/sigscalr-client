@@ -4,7 +4,7 @@
 
 To send ingestion traffic to a server using ES Bulk API:
 ```bash
-$ go run main.go ingest -n 10_000 -d http://localhost:8081/elastic -p 2
+$ ./load-test ingest -n 10_000 -d http://localhost:8081/elastic -p 2
 ```
 
 Options:
@@ -31,7 +31,7 @@ Different Types of Readers:
 
 To send queries and measure responses to a server:
 ```bash
-$ go run main.go query -d http://localhost:8081/elastic -v
+$ ./load-test query -d http://localhost:8081/elastic -v
 ```
 
 
