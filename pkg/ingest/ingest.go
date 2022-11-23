@@ -11,14 +11,12 @@ import (
 	"verifier/pkg/utils"
 
 	"github.com/dustin/go-humanize"
-	jsoniter "github.com/json-iterator/go"
 	log "github.com/sirupsen/logrus"
 	"github.com/valyala/bytebufferpool"
 )
 
 const PRINT_FREQ = 100_000
 
-var json = jsoniter.ConfigCompatibleWithStandardLibrary
 var actionLines []string = []string{}
 
 func sendRequest(client *http.Client, lines string, url string) {
@@ -52,13 +50,13 @@ func generateBulkBody(recs int, actionLine string, rdr utils.Reader) (string, er
 	defer bytebufferpool.Put(bb)
 
 	for i := 0; i < recs; i++ {
-		bb.WriteString(actionLine)
+		_, _ = bb.WriteString(actionLine)
 		log, err := rdr.GetLogLine()
 		if err != nil {
 			return "", err
 		}
-		bb.Write(log)
-		bb.WriteString("\n")
+		_, _ = bb.Write(log)
+		_, _ = bb.WriteString("\n")
 	}
 	payLoad := bb.String()
 	return payLoad, nil
@@ -115,7 +113,6 @@ func populateActionLines(idxPrefix string, numIndices int) {
 func StartIngestion(rdr utils.Reader, totalEvents int, batchSize int, url string, indexPrefix string, numIndices, processCount int) {
 	log.Println("Starting ingestion at ", url, "...")
 	var wg sync.WaitGroup
-	startTime := time.Now()
 	totalEventsPerProcess := totalEvents / processCount
 
 	ticker := time.NewTicker(time.Minute)
@@ -132,6 +129,7 @@ func StartIngestion(rdr utils.Reader, totalEvents int, batchSize int, url string
 		wg.Wait()
 		done <- true
 	}()
+	startTime := time.Now()
 
 	lastPrintedCount := uint64(0)
 readChannel:

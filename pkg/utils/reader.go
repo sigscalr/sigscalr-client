@@ -2,19 +2,24 @@ package utils
 
 import (
 	"bufio"
-	"encoding/json"
 	"errors"
+	"fmt"
 	"io"
 	"os"
 	"sync"
 	"time"
 	"unsafe"
 
+	"github.com/google/uuid"
+	jsoniter "github.com/json-iterator/go"
 	log "github.com/sirupsen/logrus"
+	"github.com/valyala/fastrand"
 )
 
+var json = jsoniter.ConfigFastest
+
 type Reader interface {
-	Init(fName string) error
+	Init(fName ...string) error
 	GetLogLine() ([]byte, error)
 }
 
@@ -51,34 +56,74 @@ type StaticReader struct {
 	logLine []byte
 }
 
-func getMockBody() map[string]interface{} {
+type DynamicReader struct {
+	baseBody map[string]interface{}
+}
+
+var cold []string = []string{"iOS", "macOS", "windows", "android", "linux"}
+var coldOptions uint32 = uint32(len(cold))
+
+var cole []string = []string{"abc def", "ghi jkl", "mno pqr", "stu vwx", "yz"}
+var coleOptions uint32 = uint32(len(cole))
+
+var colf []string = []string{"us-east-1", "us-east-2", "us-west-1", "us-west-2", "ap-south-1", "eu-west-1", "me-south-1"}
+var colfOptions uint32 = uint32(len(colf))
+
+func generateRandomBody() map[string]interface{} {
 	ev := make(map[string]interface{})
-	ts := time.Now().Unix()
-	ev["logset"] = "t1"
-	ev["traffic_flags"] = 8193
-	ev["high_res_timestamp"] = ts
-	ev["parent_start_time"] = ts
-	ev["inbound_if"] = "1103823372288"
-	ev["pod_name"] = "tam-dp-77754f4"
-	ev["dstloc"] = "west-coast"
-	ev["natdport"] = 17856
-	ev["time_generated"] = ts
-	ev["vpadding"] = 0
-	ev["sdwan_fec_data"] = 0
-	ev["chunks_sent"] = 67
-	ev["offloaded"] = 0
-	ev["dst_model"] = "S9"
-	ev["to"] = "ethernet4Zone-test4"
-	ev["monitor_tag_imei"] = "US Social"
-	ev["xff_ip"] = "00000000000000000000ffff02020202"
-	ev["dstuser"] = "funccompanysaf3ti"
-	ev["seqno"] = 6922966563614901991
-	ev["tunneled-app"] = "gtpv1-c"
+
+	randNum := fastrand.Uint32n(1_000)
+	ev["a"] = fmt.Sprintf("batch-%d", randNum)
+	ev["b"] = 8193
+	ev["c"] = "1103823372288"
+	ev["d"] = cold[fastrand.Uint32n(coldOptions)]
+	ev["e"] = cole[fastrand.Uint32n(coleOptions)]
+	ev["f"] = colf[fastrand.Uint32n(colfOptions)]
+	ev["g"] = uuid.NewString()
+	ev["h"] = fmt.Sprintf("S%d", fastrand.Uint32n(50))
+	ev["i"] = "ethernet4Zone-test4"
+	ev["j"] = fmt.Sprintf("group %d", fastrand.Uint32n(2))
+	ev["k"] = "00000000000000000000ffff02020202"
+	ev["l"] = "funccompanysaf3ti"
+	ev["m"] = 6922966563614901991
+	ev["n"] = "gtpv1-c"
+	ev["o"] = fastrand.Uint32n(10_000)
 	return ev
 }
 
-func (r *StaticReader) Init(fName string) error {
-	m := getMockBody()
+func (r *DynamicReader) Init(fName ...string) error {
+	m := generateRandomBody()
+	body, err := json.Marshal(m)
+	if err != nil {
+		return err
+	}
+	r.baseBody = m
+	stringSize := len(body) + int(unsafe.Sizeof(body))
+	log.Infof("Size of a random log line is %+v bytes", stringSize)
+	return nil
+}
+
+func (r *DynamicReader) GetLogLine() ([]byte, error) {
+	err := r.randomizeDoc()
+	if err != nil {
+		return []byte{}, err
+	}
+	return json.Marshal(r.baseBody)
+}
+
+func (r *DynamicReader) randomizeDoc() error {
+	r.baseBody["a"] = fmt.Sprintf("batch-%d", fastrand.Uint32n(1_000))
+	r.baseBody["d"] = cold[fastrand.Uint32n(coldOptions)]
+	r.baseBody["e"] = cole[fastrand.Uint32n(coleOptions)]
+	r.baseBody["f"] = colf[fastrand.Uint32n(colfOptions)]
+	r.baseBody["g"] = uuid.NewString()
+	r.baseBody["h"] = fmt.Sprintf("S%d", fastrand.Uint32n(50))
+	r.baseBody["j"] = fmt.Sprintf("group %d", fastrand.Uint32n(2))
+	return nil
+}
+
+func (r *StaticReader) Init(fName ...string) error {
+	m := generateRandomBody()
 	body, err := json.Marshal(m)
 	if err != nil {
 		return err
@@ -95,15 +140,15 @@ func (sr *StaticReader) GetLogLine() ([]byte, error) {
 
 var chunkSize int = 100_000
 
-func (fr *FileReader) Init(fName string) error {
-	fr.file = fName
+func (fr *FileReader) Init(fName ...string) error {
+	fr.file = fName[0]
 	fr.filePosition = 0
 	fr.logLines = make([][]byte, 0)
 	fr.nextLogLines = make([][]byte, 0)
 	fr.isChunkPrefetched = false
 	fr.asyncPrefetch = false
 	fr.editLock = &sync.Mutex{}
-	if _, err := os.Stat(fName); errors.Is(err, os.ErrNotExist) {
+	if _, err := os.Stat(fName[0]); errors.Is(err, os.ErrNotExist) {
 		return err
 	}
 	err := fr.swapChunks()
@@ -129,7 +174,7 @@ func (fr *FileReader) GetLogLine() ([]byte, error) {
 	retVal := fr.logLines[fr.currIdx]
 	fr.currIdx++
 	if fr.currIdx > len(fr.logLines)/2 {
-		go fr.prefetchChunk(false)
+		go func() { _ = fr.prefetchChunk(false) }()
 	}
 	return retVal, nil
 }
@@ -165,14 +210,21 @@ func (fr *FileReader) prefetchChunk(override bool) error {
 		return err
 	}
 	defer fd.Close()
-	fd.Seek(fr.filePosition, 0)
+	_, err = fd.Seek(fr.filePosition, 0)
+	if err != nil {
+		return err
+	}
 	b := &readCounter{Reader: fd}
 	fileScanner := bufio.NewScanner(b)
 	tmpMap := make(map[string]interface{})
 	ctr := 0
 	for fileScanner.Scan() {
 		ctr++
-		json.Unmarshal(fileScanner.Bytes(), &tmpMap)
+		err := json.Unmarshal(fileScanner.Bytes(), &tmpMap)
+		if err != nil {
+			log.Errorf("Failed to unmarshal log entry %+v: %+v", tmpMap, err)
+			return err
+		}
 		logs, err := json.Marshal(tmpMap)
 		if err != nil {
 			log.Errorf("Failed to marshal log entry %+v: %+v", tmpMap, err)
