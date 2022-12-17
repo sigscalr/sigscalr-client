@@ -1,10 +1,8 @@
 package cmd
 
 import (
-	"fmt"
 	"verifier/pkg/ingest"
 	"verifier/pkg/query"
-	"verifier/pkg/utils"
 
 	log "github.com/sirupsen/logrus"
 
@@ -32,12 +30,7 @@ var ingestCmd = &cobra.Command{
 		log.Infof("indexPrefix : %+v\n", indexPrefix)
 		log.Infof("numIndices : %+v\n", numIndices)
 		log.Infof("generatorType : %+v\n", generatorType)
-		reader, err := getReaderFromArgs(generatorType, dataFile)
-		if err != nil {
-			log.Fatalf("Failed to initalize reader! %v", err)
-		}
-
-		ingest.StartIngestion(reader, totalEvents, batchSize, dest, indexPrefix, numIndices, processCount)
+		ingest.StartIngestion(generatorType, dataFile, totalEvents, batchSize, dest, indexPrefix, numIndices, processCount)
 	},
 }
 
@@ -56,24 +49,6 @@ var queryCmd = &cobra.Command{
 		log.Infof("verbose : %+v\n", verbose)
 		query.StartQuery(dest, numIterations, indexPrefix, verbose)
 	},
-}
-
-func getReaderFromArgs(gentype, str string) (utils.Reader, error) {
-	var rdr utils.Reader
-	switch gentype {
-	case "", "static":
-		log.Infof("Initializing static reader")
-		rdr = &utils.StaticReader{}
-	case "dynamic":
-		rdr = &utils.DynamicReader{}
-	case "file":
-		log.Infof("Initializing file reader from %s", str)
-		rdr = &utils.FileReader{}
-	default:
-		return nil, fmt.Errorf("unsupported reader type %s. Options=[static,dynamic,file]", gentype)
-	}
-	err := rdr.Init(str)
-	return rdr, err
 }
 
 func init() {

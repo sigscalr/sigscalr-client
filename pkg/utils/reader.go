@@ -119,6 +119,7 @@ func (r *DynamicReader) randomizeDoc() error {
 	r.baseBody["g"] = uuid.NewString()
 	r.baseBody["h"] = fmt.Sprintf("S%d", fastrand.Uint32n(50))
 	r.baseBody["j"] = fmt.Sprintf("group %d", fastrand.Uint32n(2))
+	r.baseBody["o"] = fastrand.Uint32n(10_000)
 	return nil
 }
 
