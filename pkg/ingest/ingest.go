@@ -110,7 +110,25 @@ func populateActionLines(idxPrefix string, numIndices int) {
 	}
 }
 
-func StartIngestion(rdr utils.Reader, totalEvents int, batchSize int, url string, indexPrefix string, numIndices, processCount int) {
+func getReaderFromArgs(gentype, str string) (utils.Reader, error) {
+	var rdr utils.Reader
+	switch gentype {
+	case "", "static":
+		log.Infof("Initializing static reader")
+		rdr = &utils.StaticReader{}
+	case "dynamic":
+		rdr = &utils.DynamicReader{}
+	case "file":
+		log.Infof("Initializing file reader from %s", str)
+		rdr = &utils.FileReader{}
+	default:
+		return nil, fmt.Errorf("unsupported reader type %s. Options=[static,dynamic,file]", gentype)
+	}
+	err := rdr.Init(str)
+	return rdr, err
+}
+
+func StartIngestion(generatorType, dataFile string, totalEvents int, batchSize int, url string, indexPrefix string, numIndices, processCount int) {
 	log.Println("Starting ingestion at ", url, "...")
 	var wg sync.WaitGroup
 	totalEventsPerProcess := totalEvents / processCount
@@ -122,7 +140,11 @@ func StartIngestion(rdr utils.Reader, totalEvents int, batchSize int, url string
 
 	for i := 0; i < processCount; i++ {
 		wg.Add(1)
-		go runIngestion(rdr, &wg, url, totalEventsPerProcess, batchSize, i+1, indexPrefix, &totalSent)
+		reader, err := getReaderFromArgs(generatorType, dataFile)
+		if err != nil {
+			log.Fatalf("StartIngestion: failed to initalize reader! %+v", err)
+		}
+		go runIngestion(reader, &wg, url, totalEventsPerProcess, batchSize, i+1, indexPrefix, &totalSent)
 	}
 
 	go func() {
