@@ -59,8 +59,8 @@ func convertTSVToJson(input string, output string) error {
 			log.Errorf("Failed to marshal json! %v", err)
 			continue
 		}
-		outFile.Write(rawVal)
-		outFile.WriteString("\n")
+		_, _ = outFile.Write(rawVal)
+		_, _ = outFile.WriteString("\n")
 	}
 	log.Infof("Finished converting file. Total time %+v. Number of lines %+v", time.Since(sTime), count)
 	return scanner.Err()
