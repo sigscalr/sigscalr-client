@@ -4,7 +4,6 @@ import (
 	"bufio"
 	"errors"
 	"fmt"
-	"io"
 	"os"
 	"sync"
 	"time"
@@ -27,8 +26,8 @@ type Reader interface {
 // When the read index is close to the next chunk, pre-load next chunks
 // Chunks should loop over the file multiple times if necessary
 type FileReader struct {
-	file         string
-	filePosition int64 // offset of last read line in file
+	file    string
+	lineNum int //number of lines read. lets us know where to start from
 
 	editLock *sync.Mutex
 
@@ -38,17 +37,6 @@ type FileReader struct {
 	nextLogLines      [][]byte
 	isChunkPrefetched bool
 	asyncPrefetch     bool // is the chunk currenly being prefetched?
-}
-
-type readCounter struct {
-	io.Reader
-	BytesRead int
-}
-
-func (r *readCounter) Read(p []byte) (int, error) {
-	n, err := r.Reader.Read(p)
-	r.BytesRead += n
-	return n, err
 }
 
 // Repeats the same log line each time
@@ -139,11 +127,11 @@ func (sr *StaticReader) GetLogLine() ([]byte, error) {
 	return sr.logLine, nil
 }
 
-var chunkSize int = 100_000
+var chunkSize int = 10000
 
 func (fr *FileReader) Init(fName ...string) error {
 	fr.file = fName[0]
-	fr.filePosition = 0
+	fr.lineNum = 0
 	fr.logLines = make([][]byte, 0)
 	fr.nextLogLines = make([][]byte, 0)
 	fr.isChunkPrefetched = false
@@ -211,19 +199,21 @@ func (fr *FileReader) prefetchChunk(override bool) error {
 		return err
 	}
 	defer fd.Close()
-	_, err = fd.Seek(fr.filePosition, 0)
+	_, err = fd.Seek(0, 0)
 	if err != nil {
 		return err
 	}
-	b := &readCounter{Reader: fd}
-	fileScanner := bufio.NewScanner(b)
+	fileScanner := bufio.NewScanner(fd)
 	tmpMap := make(map[string]interface{})
-	ctr := 0
+	lNum := 0
 	for fileScanner.Scan() {
-		ctr++
+		if lNum <= fr.lineNum {
+			lNum++
+			continue
+		}
 		err := json.Unmarshal(fileScanner.Bytes(), &tmpMap)
 		if err != nil {
-			log.Errorf("Failed to unmarshal log entry %+v: %+v", tmpMap, err)
+			log.Errorf("Failed to unmarshal log entry %+v: lineNum %+v %+v", tmpMap, fr.lineNum, err)
 			return err
 		}
 		logs, err := json.Marshal(tmpMap)
@@ -236,16 +226,17 @@ func (fr *FileReader) prefetchChunk(override bool) error {
 			fr.isChunkPrefetched = true
 			break
 		}
+		lNum++
 	}
 
 	if err := fileScanner.Err(); err != nil {
 		log.Errorf("error in file scanner %+v", err)
 		return err
 	}
-	fr.filePosition += int64(b.BytesRead)
+	fr.lineNum = lNum
 	if len(fr.nextLogLines) <= chunkSize {
 		// this will only happen if we reached the end of the file before filling the chunk
-		fr.filePosition = 0
+		fr.lineNum = 0
 		return fr.prefetchChunk(true)
 	}
 	return nil
