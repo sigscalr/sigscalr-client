@@ -43,3 +43,11 @@ Options:
 
 -v  verbose                Output hits and elapsed time for each query
 ```
+
+
+## Utils
+
+To convert a TSV to a JSON file that can be ingested via `-g dynamic -f file`:
+```bash
+$ go run cmd/utils/converter.go --input {input file name} --output {output file name}
+```

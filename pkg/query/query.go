@@ -233,6 +233,7 @@ func getNeedleInHaystackQuery() []byte {
 func sendSingleRequest(qType queryTypes, client *http.Client, body []byte, url string, verbose bool) float64 {
 	req, err := http.NewRequest("POST", url, bytes.NewReader(body))
 	req.Header.Set("Content-Type", "application/json")
+	req.SetBasicAuth("admin", "Complexpass#123")
 
 	if err != nil {
 		log.Fatalf("sendRequest: http.NewRequest ERROR: %v", err)
