@@ -61,21 +61,21 @@ func generateRandomBody() map[string]interface{} {
 	ev := make(map[string]interface{})
 
 	randNum := fastrand.Uint32n(1_000)
-	ev["a"] = fmt.Sprintf("batch-%d", randNum)
-	ev["b"] = 8193
-	ev["c"] = "1103823372288"
-	ev["d"] = cold[fastrand.Uint32n(coldOptions)]
-	ev["e"] = cole[fastrand.Uint32n(coleOptions)]
-	ev["f"] = colf[fastrand.Uint32n(colfOptions)]
-	ev["g"] = uuid.NewString()
-	ev["h"] = fmt.Sprintf("S%d", fastrand.Uint32n(50))
-	ev["i"] = "ethernet4Zone-test4"
-	ev["j"] = fmt.Sprintf("group %d", fastrand.Uint32n(2))
-	ev["k"] = "00000000000000000000ffff02020202"
-	ev["l"] = "funccompanysaf3ti"
-	ev["m"] = 6922966563614901991
-	ev["n"] = "gtpv1-c"
-	ev["o"] = fastrand.Uint32n(10_000)
+	ev["batch"] = fmt.Sprintf("batch-%d", randNum)
+	ev["traffic_flags"] = 8193
+	ev["inbound_if"] = "1103823372288"
+	ev["os"] = cold[fastrand.Uint32n(coldOptions)]
+	ev["pod_name"] = cole[fastrand.Uint32n(coleOptions)]
+	ev["region"] = colf[fastrand.Uint32n(colfOptions)]
+	ev["ident"] = uuid.NewString()
+	ev["dst_model"] = fmt.Sprintf("S%d", fastrand.Uint32n(50))
+	ev["to"] = "ethernet4Zone-test4"
+	ev["group"] = fmt.Sprintf("group %d", fastrand.Uint32n(2))
+	ev["xff_ip"] = "00000000000000000000ffff02020202"
+	ev["dstuser"] = "funccompanysaf3ti"
+	ev["seqno"] = 6922966563614901991
+	ev["tunneled"] = "gtpv1-c"
+	ev["latency"] = fastrand.Uint32n(10_000)
 	return ev
 }
 
@@ -100,14 +100,14 @@ func (r *DynamicReader) GetLogLine() ([]byte, error) {
 }
 
 func (r *DynamicReader) randomizeDoc() error {
-	r.baseBody["a"] = fmt.Sprintf("batch-%d", fastrand.Uint32n(1_000))
-	r.baseBody["d"] = cold[fastrand.Uint32n(coldOptions)]
-	r.baseBody["e"] = cole[fastrand.Uint32n(coleOptions)]
-	r.baseBody["f"] = colf[fastrand.Uint32n(colfOptions)]
-	r.baseBody["g"] = uuid.NewString()
-	r.baseBody["h"] = fmt.Sprintf("S%d", fastrand.Uint32n(50))
-	r.baseBody["j"] = fmt.Sprintf("group %d", fastrand.Uint32n(2))
-	r.baseBody["o"] = fastrand.Uint32n(10_000)
+	r.baseBody["batch"] = fmt.Sprintf("batch-%d", fastrand.Uint32n(1_000))
+	r.baseBody["os"] = cold[fastrand.Uint32n(coldOptions)]
+	r.baseBody["pod_name"] = cole[fastrand.Uint32n(coleOptions)]
+	r.baseBody["region"] = colf[fastrand.Uint32n(colfOptions)]
+	r.baseBody["ident"] = uuid.NewString()
+	r.baseBody["dst_model"] = fmt.Sprintf("S%d", fastrand.Uint32n(50))
+	r.baseBody["group"] = fmt.Sprintf("group %d", fastrand.Uint32n(2))
+	r.baseBody["latency"] = fastrand.Uint32n(10_000)
 	return nil
 }
 
