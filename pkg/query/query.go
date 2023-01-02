@@ -120,12 +120,12 @@ func getMatchMultipleQuery() []byte {
 				"must": []interface{}{
 					map[string]interface{}{
 						"term": map[string]interface{}{
-							"d": "iOS",
+							"os": "iOS",
 						},
 					},
 					map[string]interface{}{
 						"term": map[string]interface{}{
-							"f": "us-east-1",
+							"region": "us-east-1",
 						},
 					},
 				},
@@ -141,7 +141,7 @@ func getMatchMultipleQuery() []byte {
 					},
 					map[string]interface{}{
 						"term": map[string]interface{}{
-							"j": "group 0",
+							"group": "group 0",
 						},
 					},
 				},
@@ -165,7 +165,7 @@ func getRangeQuery() []byte {
 				"must": []interface{}{
 					map[string]interface{}{
 						"range": map[string]interface{}{
-							"o": map[string]interface{}{
+							"latency": map[string]interface{}{
 								"gte": 10,
 								"lte": 30,
 							},
@@ -205,7 +205,7 @@ func getNeedleInHaystackQuery() []byte {
 				"must": []interface{}{
 					map[string]interface{}{
 						"term": map[string]interface{}{
-							"d": randUUID,
+							"ident": randUUID,
 						},
 					},
 				},
