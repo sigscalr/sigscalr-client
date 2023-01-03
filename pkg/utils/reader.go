@@ -75,7 +75,7 @@ func generateRandomBody() map[string]interface{} {
 	ev["dstuser"] = "funccompanysaf3ti"
 	ev["seqno"] = 6922966563614901991
 	ev["tunneled"] = "gtpv1-c"
-	ev["latency"] = fastrand.Uint32n(10_000)
+	ev["latency"] = fastrand.Uint32n(10_000_000)
 	return ev
 }
 

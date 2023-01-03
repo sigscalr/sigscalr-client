@@ -74,7 +74,7 @@ func runIngestion(rdr utils.Reader, wg *sync.WaitGroup, url string, totalEvents,
 	t.MaxConnsPerHost = 100
 	t.MaxIdleConnsPerHost = 100
 	client := &http.Client{
-		Timeout:   10 * time.Second,
+		Timeout:   100 * time.Second,
 		Transport: t,
 	}
 
