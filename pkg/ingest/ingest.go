@@ -51,11 +51,11 @@ func generateBulkBody(recs int, actionLine string, rdr utils.Reader) (string, er
 
 	for i := 0; i < recs; i++ {
 		_, _ = bb.WriteString(actionLine)
-		log, err := rdr.GetLogLine()
+		logline, err := rdr.GetLogLine()
 		if err != nil {
 			return "", err
 		}
-		_, _ = bb.Write(log)
+		_, _ = bb.Write(logline)
 		_, _ = bb.WriteString("\n")
 	}
 	payLoad := bb.String()
