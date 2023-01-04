@@ -8,7 +8,6 @@ import (
 	"net/http"
 	"time"
 
-	"github.com/google/uuid"
 	"github.com/montanaflynn/stats"
 
 	log "github.com/sirupsen/logrus"
@@ -39,18 +38,6 @@ func (q queryTypes) String() string {
 }
 
 func validateAndGetElapsedTime(qType queryTypes, esOutput map[string]interface{}, verbose bool) float64 {
-	status, ok := esOutput["status"]
-	if !ok {
-		log.Fatalf("required key 'status' missing in response %+v", esOutput)
-	}
-	switch status := status.(type) {
-	case float64:
-		if status != float64(200) {
-			log.Fatalf("non 200 status response by query: %v", status)
-		}
-	default:
-		log.Fatalf("unknown type for 'status': %+T", status)
-	}
 
 	etime, ok := esOutput["took"]
 	if !ok {
@@ -86,7 +73,7 @@ func getMatchAllQuery() []byte {
 			"bool": map[string]interface{}{
 				"must": []interface{}{
 					map[string]interface{}{
-						"match_all": true,
+						"match_all": map[string]interface{}{},
 					},
 				},
 				"filter": []interface{}{
@@ -95,7 +82,7 @@ func getMatchAllQuery() []byte {
 							"timestamp": map[string]interface{}{
 								"gte":    time90d,
 								"lte":    time,
-								"format": "strict_date_optional_time",
+								"format": "epoch_millis",
 							},
 						},
 					},
@@ -119,13 +106,13 @@ func getMatchMultipleQuery() []byte {
 			"bool": map[string]interface{}{
 				"must": []interface{}{
 					map[string]interface{}{
-						"term": map[string]interface{}{
+						"match": map[string]interface{}{
 							"os": "iOS",
 						},
 					},
 					map[string]interface{}{
-						"term": map[string]interface{}{
-							"region": "us-east-1",
+						"match": map[string]interface{}{
+							"region": "us-east-2",
 						},
 					},
 				},
@@ -135,12 +122,12 @@ func getMatchMultipleQuery() []byte {
 							"timestamp": map[string]interface{}{
 								"gte":    time90d,
 								"lte":    time,
-								"format": "strict_date_optional_time",
+								"format": "epoch_millis",
 							},
 						},
 					},
 					map[string]interface{}{
-						"term": map[string]interface{}{
+						"match": map[string]interface{}{
 							"group": "group 0",
 						},
 					},
@@ -167,7 +154,7 @@ func getRangeQuery() []byte {
 						"range": map[string]interface{}{
 							"latency": map[string]interface{}{
 								"gte": 10,
-								"lte": 30,
+								"lte": 8925969,
 							},
 						},
 					},
@@ -178,7 +165,7 @@ func getRangeQuery() []byte {
 							"timestamp": map[string]interface{}{
 								"gte":    time90d,
 								"lte":    time,
-								"format": "strict_date_optional_time",
+								"format": "epoch_millis",
 							},
 						},
 					},
@@ -198,13 +185,13 @@ func getNeedleInHaystackQuery() []byte {
 	time := time.Now().UnixMilli()
 	time90d := time - (90 * 24 * 60 * 60 * 1000)
 
-	randUUID := uuid.NewString()
+	randUUID := "c45d2c0d-9c93-4f1b-9e79-7d2b71bb6eb8"
 	var matchAllQuery = map[string]interface{}{
 		"query": map[string]interface{}{
 			"bool": map[string]interface{}{
 				"must": []interface{}{
 					map[string]interface{}{
-						"term": map[string]interface{}{
+						"match": map[string]interface{}{
 							"ident": randUUID,
 						},
 					},
@@ -215,7 +202,7 @@ func getNeedleInHaystackQuery() []byte {
 							"timestamp": map[string]interface{}{
 								"gte":    time90d,
 								"lte":    time,
-								"format": "strict_date_optional_time",
+								"format": "epoch_millis",
 							},
 						},
 					},
