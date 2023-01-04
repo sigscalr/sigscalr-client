@@ -46,6 +46,7 @@ type StaticReader struct {
 
 type DynamicReader struct {
 	baseBody map[string]interface{}
+	tNowEpoch uint64
 }
 
 var cold []string = []string{"iOS", "macOS", "windows", "android", "linux"}
@@ -76,6 +77,7 @@ func generateRandomBody() map[string]interface{} {
 	ev["seqno"] = 6922966563614901991
 	ev["tunneled"] = "gtpv1-c"
 	ev["latency"] = fastrand.Uint32n(10_000_000)
+	ev["timestamp"] = time.Now().UnixMilli() - 10_000_000
 	return ev
 }
 
@@ -88,6 +90,7 @@ func (r *DynamicReader) Init(fName ...string) error {
 	r.baseBody = m
 	stringSize := len(body) + int(unsafe.Sizeof(body))
 	log.Infof("Size of a random log line is %+v bytes", stringSize)
+	r.tNowEpoch = uint64(time.Now().UnixMilli()) - 80 * 24 * 3600 * 1000
 	return nil
 }
 
@@ -108,6 +111,8 @@ func (r *DynamicReader) randomizeDoc() error {
 	r.baseBody["dst_model"] = fmt.Sprintf("S%d", fastrand.Uint32n(50))
 	r.baseBody["group"] = fmt.Sprintf("group %d", fastrand.Uint32n(2))
 	r.baseBody["latency"] = fastrand.Uint32n(10_000)
+	r.baseBody["timestamp"] = r.tNowEpoch
+	r.tNowEpoch += 2
 	return nil
 }
 
