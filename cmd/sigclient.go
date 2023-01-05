@@ -51,6 +51,20 @@ var queryCmd = &cobra.Command{
 	},
 }
 
+var traceCmd = &cobra.Command{
+	Use:   "traces",
+	Short: "send traces to Sigscalr",
+	Run: func(cmd *cobra.Command, args []string) {
+		file, _ := cmd.Flags().GetString("filePath")
+		totalTraces, _ := cmd.Flags().GetInt("totalEvents")
+		maxSpans, _ := cmd.Flags().GetInt("maxSpans")
+
+		log.Infof("file : %+v\n", file)
+		log.Infof("totalTraces : %+v\n", totalTraces)
+		log.Infof("maxSpans : %+v\n", maxSpans)
+	},
+}
+
 func init() {
 	rootCmd.PersistentFlags().StringP("dest", "d", "", "ES Server URL.")
 	rootCmd.PersistentFlags().StringP("indexPrefix", "i", "ind", "index prefix")
@@ -65,6 +79,11 @@ func init() {
 	queryCmd.PersistentFlags().IntP("count", "c", 10, "number of times to run entire query suite")
 	queryCmd.Flags().BoolP("verbose", "v", false, "Verbose querying will output raw docs returned by queries")
 
+	traceCmd.PersistentFlags().StringP("filePath", "f", "", "Name of file to output to")
+	traceCmd.PersistentFlags().IntP("totalEvents", "t", 1000000, "Total number of traces to generate")
+	traceCmd.Flags().IntP("maxSpans", "s", 100, "max number of spans in a single trace")
+
 	rootCmd.AddCommand(ingestCmd)
 	rootCmd.AddCommand(queryCmd)
+	rootCmd.AddCommand(traceCmd)
 }
