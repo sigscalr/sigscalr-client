@@ -19,6 +19,7 @@ Options:
   -n, --numIndices int       number of indices to ingest to (default 1)
   -p, --processCount int     Number of parallel process to ingest data from. (default 1)
   -t, --totalEvents int      Total number of events to send (default 1000000)
+  -s, --timestamp            If set, adds "timestamp" to the static/dynamic generators
 ```
 
 Different Types of Readers:
