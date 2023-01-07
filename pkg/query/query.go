@@ -8,7 +8,7 @@ import (
 	"net/http"
 	"time"
 
-	"github.com/google/uuid"
+	"github.com/brianvoe/gofakeit/v6"
 	"github.com/montanaflynn/stats"
 
 	log "github.com/sirupsen/logrus"
@@ -21,11 +21,8 @@ const (
 	matchMultiple
 	matchRange
 	needleInHaystack
-<<<<<<< Updated upstream
-=======
 	keyValueQuery
 	freeText
->>>>>>> Stashed changes
 )
 
 func (q queryTypes) String() string {
@@ -38,31 +35,16 @@ func (q queryTypes) String() string {
 		return "match range"
 	case needleInHaystack:
 		return "needle in haystack"
-<<<<<<< Updated upstream
-=======
 	case keyValueQuery:
 		return "single key=value"
 	case freeText:
 		return "free text"
->>>>>>> Stashed changes
 	default:
 		return "UNKNOWN"
 	}
 }
 
 func validateAndGetElapsedTime(qType queryTypes, esOutput map[string]interface{}, verbose bool) float64 {
-	status, ok := esOutput["status"]
-	if !ok {
-		log.Fatalf("required key 'status' missing in response %+v", esOutput)
-	}
-	switch status := status.(type) {
-	case float64:
-		if status != float64(200) {
-			log.Fatalf("non 200 status response by query: %v", status)
-		}
-	default:
-		log.Fatalf("unknown type for 'status': %+T", status)
-	}
 
 	etime, ok := esOutput["took"]
 	if !ok {
@@ -98,7 +80,7 @@ func getMatchAllQuery() []byte {
 			"bool": map[string]interface{}{
 				"must": []interface{}{
 					map[string]interface{}{
-						"match_all": true,
+						"match_all": map[string]interface{}{},
 					},
 				},
 				"filter": []interface{}{
@@ -107,7 +89,7 @@ func getMatchAllQuery() []byte {
 							"timestamp": map[string]interface{}{
 								"gte":    time90d,
 								"lte":    time,
-								"format": "strict_date_optional_time",
+								"format": "epoch_millis",
 							},
 						},
 					},
@@ -122,7 +104,7 @@ func getMatchAllQuery() []byte {
 	return raw
 }
 
-// d=iOS AND f=us-east-1 AND j != "group 0"
+// job_title=<<random_title>> AND user_color=<<random_color>> AND j != "group 0"
 func getMatchMultipleQuery() []byte {
 	time := time.Now().UnixMilli()
 	time90d := time - (90 * 24 * 60 * 60 * 1000)
@@ -131,13 +113,13 @@ func getMatchMultipleQuery() []byte {
 			"bool": map[string]interface{}{
 				"must": []interface{}{
 					map[string]interface{}{
-						"term": map[string]interface{}{
-							"os": "iOS",
+						"match": map[string]interface{}{
+							"job_title": gofakeit.JobTitle(),
 						},
 					},
 					map[string]interface{}{
-						"term": map[string]interface{}{
-							"region": "us-east-1",
+						"match": map[string]interface{}{
+							"user_color": gofakeit.Color(),
 						},
 					},
 				},
@@ -147,12 +129,12 @@ func getMatchMultipleQuery() []byte {
 							"timestamp": map[string]interface{}{
 								"gte":    time90d,
 								"lte":    time,
-								"format": "strict_date_optional_time",
+								"format": "epoch_millis",
 							},
 						},
 					},
 					map[string]interface{}{
-						"term": map[string]interface{}{
+						"match": map[string]interface{}{
 							"group": "group 0",
 						},
 					},
@@ -167,7 +149,7 @@ func getMatchMultipleQuery() []byte {
 	return raw
 }
 
-// 10 <= o <= 30
+// 10 <= latency <= 30
 func getRangeQuery() []byte {
 	time := time.Now().UnixMilli()
 	time90d := time - (90 * 24 * 60 * 60 * 1000)
@@ -179,7 +161,7 @@ func getRangeQuery() []byte {
 						"range": map[string]interface{}{
 							"latency": map[string]interface{}{
 								"gte": 10,
-								"lte": 30,
+								"lte": 8925969,
 							},
 						},
 					},
@@ -190,7 +172,7 @@ func getRangeQuery() []byte {
 							"timestamp": map[string]interface{}{
 								"gte":    time90d,
 								"lte":    time,
-								"format": "strict_date_optional_time",
+								"format": "epoch_millis",
 							},
 						},
 					},
@@ -210,13 +192,13 @@ func getNeedleInHaystackQuery() []byte {
 	time := time.Now().UnixMilli()
 	time90d := time - (90 * 24 * 60 * 60 * 1000)
 
-	randUUID := uuid.NewString()
+	randUUID := "c45d2c0d-9c93-4f1b-9e79-7d2b71bb6eb8"
 	var matchAllQuery = map[string]interface{}{
 		"query": map[string]interface{}{
 			"bool": map[string]interface{}{
 				"must": []interface{}{
 					map[string]interface{}{
-						"term": map[string]interface{}{
+						"match": map[string]interface{}{
 							"ident": randUUID,
 						},
 					},
@@ -227,8 +209,52 @@ func getNeedleInHaystackQuery() []byte {
 							"timestamp": map[string]interface{}{
 								"gte":    time90d,
 								"lte":    time,
-								"format": "strict_date_optional_time",
+								"format": "epoch_millis",
 							},
+						},
+					},
+				},
+			},
+		},
+	}
+	raw, err := json.Marshal(matchAllQuery)
+	if err != nil {
+		log.Fatalf("error marshalling query: %+v", err)
+	}
+	return raw
+}
+
+// matches a simple key=value using query_string
+func getSimpleFilter() []byte {
+	var matchAllQuery = map[string]interface{}{
+		"query": map[string]interface{}{
+			"bool": map[string]interface{}{
+				"must": []interface{}{
+					map[string]interface{}{
+						"query_string": map[string]interface{}{
+							"query": fmt.Sprintf("state:%s", gofakeit.State()),
+						},
+					},
+				},
+			},
+		},
+	}
+	raw, err := json.Marshal(matchAllQuery)
+	if err != nil {
+		log.Fatalf("error marshalling query: %+v", err)
+	}
+	return raw
+}
+
+// free text search query for a job title
+func getFreeTextSearch() []byte {
+	var matchAllQuery = map[string]interface{}{
+		"query": map[string]interface{}{
+			"bool": map[string]interface{}{
+				"must": []interface{}{
+					map[string]interface{}{
+						"query_string": map[string]interface{}{
+							"query": gofakeit.JobTitle(),
 						},
 					},
 				},
@@ -273,11 +299,8 @@ func initResultMap(numIterations int) map[queryTypes][]float64 {
 	results[matchMultiple] = make([]float64, numIterations)
 	results[matchRange] = make([]float64, numIterations)
 	results[needleInHaystack] = make([]float64, numIterations)
-<<<<<<< Updated upstream
-=======
 	results[keyValueQuery] = make([]float64, numIterations)
 	results[freeText] = make([]float64, numIterations)
->>>>>>> Stashed changes
 	return results
 }
 
@@ -317,8 +340,6 @@ func StartQuery(dest string, numIterations int, prefix string, verbose bool) {
 		rawNeeldQuery := getNeedleInHaystackQuery()
 		time = sendSingleRequest(needleInHaystack, client, rawNeeldQuery, requestStr, verbose)
 		results[needleInHaystack][i] = time
-<<<<<<< Updated upstream
-=======
 
 		sQuery := getSimpleFilter()
 		time = sendSingleRequest(keyValueQuery, client, sQuery, requestStr, verbose)
@@ -327,7 +348,6 @@ func StartQuery(dest string, numIterations int, prefix string, verbose bool) {
 		fQuery := getFreeTextSearch()
 		time = sendSingleRequest(freeText, client, fQuery, requestStr, verbose)
 		results[freeText][i] = time
->>>>>>> Stashed changes
 	}
 
 	logQuerySummary(numIterations, results)
