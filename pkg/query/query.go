@@ -8,6 +8,7 @@ import (
 	"net/http"
 	"time"
 
+	"github.com/brianvoe/gofakeit/v6"
 	"github.com/montanaflynn/stats"
 
 	log "github.com/sirupsen/logrus"
@@ -107,12 +108,12 @@ func getMatchMultipleQuery() []byte {
 				"must": []interface{}{
 					map[string]interface{}{
 						"match": map[string]interface{}{
-							"os": "iOS",
+							"job_title": gofakeit.JobTitle(),
 						},
 					},
 					map[string]interface{}{
 						"match": map[string]interface{}{
-							"region": "us-east-2",
+							"user_color": gofakeit.Color(),
 						},
 					},
 				},
