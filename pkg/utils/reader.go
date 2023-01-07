@@ -42,9 +42,11 @@ type FileReader struct {
 // Repeats the same log line each time
 type StaticReader struct {
 	logLine []byte
+	ts      bool
 }
 
 type DynamicReader struct {
+<<<<<<< Updated upstream
 	baseBody map[string]interface{}
 }
 
@@ -82,6 +84,79 @@ func generateRandomBody() map[string]interface{} {
 func (r *DynamicReader) Init(fName ...string) error {
 	m := generateRandomBody()
 	body, err := json.Marshal(m)
+=======
+	baseBody  map[string]interface{}
+	tNowEpoch uint64
+	ts        bool
+	faker     *gofakeit.Faker
+}
+
+func InitDynamicReader(ts bool) *DynamicReader {
+	return &DynamicReader{
+		ts: ts,
+	}
+}
+
+func InitStaticReader(ts bool) *StaticReader {
+	return &StaticReader{
+		ts: ts,
+	}
+}
+
+func InitFileReader() *FileReader {
+	return &FileReader{}
+}
+
+func randomizeBody(f *gofakeit.Faker, m map[string]interface{}, addts bool) {
+	randNum := fastrand.Uint32n(1_000)
+	// sentenceLen := int(fastrand.Uint32n(25))
+	m["batch"] = fmt.Sprintf("batch-%d", randNum)
+	p := f.Person()
+	m["first_name"] = p.FirstName
+	m["last_name"] = p.LastName
+	m["gender"] = p.Gender
+	m["ssn"] = p.SSN
+	m["image"] = p.Image
+	m["hobby"] = p.Hobby
+
+	m["job_description"] = p.Job.Descriptor
+	m["job_level"] = p.Job.Level
+	m["job_title"] = p.Job.Title
+	m["job_company"] = p.Job.Company
+
+	m["address"] = p.Address.Address
+	m["street"] = p.Address.Street
+	m["city"] = p.Address.City
+	m["state"] = p.Address.State
+	m["zip"] = p.Address.Zip
+	m["country"] = p.Address.Country
+	m["latitude"] = p.Address.Latitude
+	m["longitude"] = p.Address.Longitude
+	m["user_phone"] = p.Contact.Phone
+	m["user_email"] = p.Contact.Email
+
+	m["user_color"] = f.Color()
+	m["app_name"] = f.AppName()
+	m["app_version"] = f.AppVersion()
+	m["ident"] = f.UUID()
+	m["user_agent"] = f.UserAgent()
+	m["url"] = f.URL()
+	m["group"] = fmt.Sprintf("group %d", fastrand.Uint32n(2))
+	m["question"] = f.Question()
+	m["latency"] = fastrand.Uint32n(10_000_000)
+	m["timestamp"] = uint64(time.Now().UnixMilli())
+}
+
+func (r *DynamicReader) generateRandomBody() {
+	randomizeBody(r.faker, r.baseBody, r.ts)
+}
+
+func (r *DynamicReader) Init(fName ...string) error {
+	r.faker = gofakeit.NewUnlocked(int64(fastrand.Uint32n(1_000)))
+	r.baseBody = make(map[string]interface{})
+	r.generateRandomBody()
+	body, err := json.Marshal(r.baseBody)
+>>>>>>> Stashed changes
 	if err != nil {
 		return err
 	}
@@ -112,7 +187,13 @@ func (r *DynamicReader) randomizeDoc() error {
 }
 
 func (r *StaticReader) Init(fName ...string) error {
+<<<<<<< Updated upstream
 	m := generateRandomBody()
+=======
+	m := make(map[string]interface{})
+	f := gofakeit.NewUnlocked(int64(fastrand.Uint32n(1_000)))
+	randomizeBody(f, m, r.ts)
+>>>>>>> Stashed changes
 	body, err := json.Marshal(m)
 	if err != nil {
 		return err

@@ -21,6 +21,11 @@ const (
 	matchMultiple
 	matchRange
 	needleInHaystack
+<<<<<<< Updated upstream
+=======
+	keyValueQuery
+	freeText
+>>>>>>> Stashed changes
 )
 
 func (q queryTypes) String() string {
@@ -33,6 +38,13 @@ func (q queryTypes) String() string {
 		return "match range"
 	case needleInHaystack:
 		return "needle in haystack"
+<<<<<<< Updated upstream
+=======
+	case keyValueQuery:
+		return "single key=value"
+	case freeText:
+		return "free text"
+>>>>>>> Stashed changes
 	default:
 		return "UNKNOWN"
 	}
@@ -261,6 +273,11 @@ func initResultMap(numIterations int) map[queryTypes][]float64 {
 	results[matchMultiple] = make([]float64, numIterations)
 	results[matchRange] = make([]float64, numIterations)
 	results[needleInHaystack] = make([]float64, numIterations)
+<<<<<<< Updated upstream
+=======
+	results[keyValueQuery] = make([]float64, numIterations)
+	results[freeText] = make([]float64, numIterations)
+>>>>>>> Stashed changes
 	return results
 }
 
@@ -300,6 +317,17 @@ func StartQuery(dest string, numIterations int, prefix string, verbose bool) {
 		rawNeeldQuery := getNeedleInHaystackQuery()
 		time = sendSingleRequest(needleInHaystack, client, rawNeeldQuery, requestStr, verbose)
 		results[needleInHaystack][i] = time
+<<<<<<< Updated upstream
+=======
+
+		sQuery := getSimpleFilter()
+		time = sendSingleRequest(keyValueQuery, client, sQuery, requestStr, verbose)
+		results[keyValueQuery][i] = time
+
+		fQuery := getFreeTextSearch()
+		time = sendSingleRequest(freeText, client, fQuery, requestStr, verbose)
+		results[freeText][i] = time
+>>>>>>> Stashed changes
 	}
 
 	logQuerySummary(numIterations, results)
