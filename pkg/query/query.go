@@ -21,6 +21,8 @@ const (
 	matchMultiple
 	matchRange
 	needleInHaystack
+	simpleQuery
+	freeText
 )
 
 func (q queryTypes) String() string {
@@ -33,6 +35,10 @@ func (q queryTypes) String() string {
 		return "match range"
 	case needleInHaystack:
 		return "needle in haystack"
+	case simpleQuery:
+		return "simple key=value"
+	case freeText:
+		return "free text"
 	default:
 		return "UNKNOWN"
 	}
@@ -98,7 +104,7 @@ func getMatchAllQuery() []byte {
 	return raw
 }
 
-// d=iOS AND f=us-east-1 AND j != "group 0"
+// job_title=<<random_title>> AND user_color=<<random_color>> AND j != "group 0"
 func getMatchMultipleQuery() []byte {
 	time := time.Now().UnixMilli()
 	time90d := time - (90 * 24 * 60 * 60 * 1000)
@@ -143,7 +149,7 @@ func getMatchMultipleQuery() []byte {
 	return raw
 }
 
-// 10 <= o <= 30
+// 10 <= latency <= 30
 func getRangeQuery() []byte {
 	time := time.Now().UnixMilli()
 	time90d := time - (90 * 24 * 60 * 60 * 1000)
@@ -218,6 +224,50 @@ func getNeedleInHaystackQuery() []byte {
 	return raw
 }
 
+// matches a simple key=value using query_string
+func getSimpleFilter() []byte {
+	var matchAllQuery = map[string]interface{}{
+		"query": map[string]interface{}{
+			"bool": map[string]interface{}{
+				"must": []interface{}{
+					map[string]interface{}{
+						"query_string": map[string]interface{}{
+							"query": fmt.Sprintf("state:%s", gofakeit.State()),
+						},
+					},
+				},
+			},
+		},
+	}
+	raw, err := json.Marshal(matchAllQuery)
+	if err != nil {
+		log.Fatalf("error marshalling query: %+v", err)
+	}
+	return raw
+}
+
+// free text search query for a job title
+func getFreeTextSearch() []byte {
+	var matchAllQuery = map[string]interface{}{
+		"query": map[string]interface{}{
+			"bool": map[string]interface{}{
+				"must": []interface{}{
+					map[string]interface{}{
+						"query_string": map[string]interface{}{
+							"query": gofakeit.JobTitle(),
+						},
+					},
+				},
+			},
+		},
+	}
+	raw, err := json.Marshal(matchAllQuery)
+	if err != nil {
+		log.Fatalf("error marshalling query: %+v", err)
+	}
+	return raw
+}
+
 func sendSingleRequest(qType queryTypes, client *http.Client, body []byte, url string, verbose bool) float64 {
 	req, err := http.NewRequest("POST", url, bytes.NewReader(body))
 	req.Header.Set("Content-Type", "application/json")
@@ -249,6 +299,8 @@ func initResultMap(numIterations int) map[queryTypes][]float64 {
 	results[matchMultiple] = make([]float64, numIterations)
 	results[matchRange] = make([]float64, numIterations)
 	results[needleInHaystack] = make([]float64, numIterations)
+	results[simpleQuery] = make([]float64, numIterations)
+	results[freeText] = make([]float64, numIterations)
 	return results
 }
 
@@ -288,6 +340,14 @@ func StartQuery(dest string, numIterations int, prefix string, verbose bool) {
 		rawNeeldQuery := getNeedleInHaystackQuery()
 		time = sendSingleRequest(needleInHaystack, client, rawNeeldQuery, requestStr, verbose)
 		results[needleInHaystack][i] = time
+
+		sQuery := getSimpleFilter()
+		time = sendSingleRequest(simpleQuery, client, sQuery, requestStr, verbose)
+		results[simpleQuery][i] = time
+
+		fQuery := getFreeTextSearch()
+		time = sendSingleRequest(freeText, client, fQuery, requestStr, verbose)
+		results[freeText][i] = time
 	}
 
 	logQuerySummary(numIterations, results)
