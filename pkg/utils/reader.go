@@ -105,7 +105,10 @@ func randomizeBody(f *gofakeit.Faker, m map[string]interface{}, addts bool) {
 	m["group"] = fmt.Sprintf("group %d", fastrand.Uint32n(2))
 	m["question"] = f.Question()
 	m["latency"] = fastrand.Uint32n(10_000_000)
-	m["timestamp"] = uint64(time.Now().UnixMilli())
+
+	if addts {
+		m["timestamp"] = uint64(time.Now().UnixMilli())
+	}
 }
 
 func (r *DynamicReader) generateRandomBody() {
