@@ -192,14 +192,14 @@ func getNeedleInHaystackQuery() []byte {
 	time := time.Now().UnixMilli()
 	time90d := time - (90 * 24 * 60 * 60 * 1000)
 
-	randUUID := "c45d2c0d-9c93-4f1b-9e79-7d2b71bb6eb8"
+	randUUID := "b92e6b0f-3589-4fac-a2f3-0f6ab7cb60f5"
 	var matchAllQuery = map[string]interface{}{
 		"query": map[string]interface{}{
 			"bool": map[string]interface{}{
 				"must": []interface{}{
 					map[string]interface{}{
-						"match": map[string]interface{}{
-							"ident": randUUID,
+						"query_string": map[string]interface{}{
+							"query": fmt.Sprintf("ident:%s", randUUID),
 						},
 					},
 				},
@@ -226,6 +226,9 @@ func getNeedleInHaystackQuery() []byte {
 
 // matches a simple key=value using query_string
 func getSimpleFilter() []byte {
+	time := time.Now().UnixMilli()
+	time90d := time - (90 * 24 * 60 * 60 * 1000)
+
 	var matchAllQuery = map[string]interface{}{
 		"query": map[string]interface{}{
 			"bool": map[string]interface{}{
@@ -233,6 +236,17 @@ func getSimpleFilter() []byte {
 					map[string]interface{}{
 						"query_string": map[string]interface{}{
 							"query": fmt.Sprintf("state:%s", gofakeit.State()),
+						},
+					},
+				},
+				"filter": []interface{}{
+					map[string]interface{}{
+						"range": map[string]interface{}{
+							"timestamp": map[string]interface{}{
+								"gte":    time90d,
+								"lte":    time,
+								"format": "epoch_millis",
+							},
 						},
 					},
 				},
