@@ -192,14 +192,13 @@ func getNeedleInHaystackQuery() []byte {
 	time := time.Now().UnixMilli()
 	time90d := time - (90 * 24 * 60 * 60 * 1000)
 
-	randUUID := "b92e6b0f-3589-4fac-a2f3-0f6ab7cb60f5"
 	var matchAllQuery = map[string]interface{}{
 		"query": map[string]interface{}{
 			"bool": map[string]interface{}{
 				"must": []interface{}{
 					map[string]interface{}{
 						"query_string": map[string]interface{}{
-							"query": fmt.Sprintf("ident:%s", randUUID),
+							"query": fmt.Sprintf("ident:%s", "ffa4c7d4-5f21-457b-89ea-b5ad29968510"),
 						},
 					},
 				},
@@ -262,6 +261,8 @@ func getSimpleFilter() []byte {
 
 // free text search query for a job title
 func getFreeTextSearch() []byte {
+	time := time.Now().UnixMilli()
+	time90d := time - (90 * 24 * 60 * 60 * 1000)
 	var matchAllQuery = map[string]interface{}{
 		"query": map[string]interface{}{
 			"bool": map[string]interface{}{
@@ -269,6 +270,17 @@ func getFreeTextSearch() []byte {
 					map[string]interface{}{
 						"query_string": map[string]interface{}{
 							"query": gofakeit.JobTitle(),
+						},
+					},
+				},
+				"filter": []interface{}{
+					map[string]interface{}{
+						"range": map[string]interface{}{
+							"timestamp": map[string]interface{}{
+								"gte":    time90d,
+								"lte":    time,
+								"format": "epoch_millis",
+							},
 						},
 					},
 				},
