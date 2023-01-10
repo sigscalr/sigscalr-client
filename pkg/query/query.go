@@ -21,7 +21,7 @@ const (
 	matchMultiple
 	matchRange
 	needleInHaystack
-	simpleQuery
+	keyValueQuery
 	freeText
 )
 
@@ -35,8 +35,8 @@ func (q queryTypes) String() string {
 		return "match range"
 	case needleInHaystack:
 		return "needle in haystack"
-	case simpleQuery:
-		return "simple key=value"
+	case keyValueQuery:
+		return "single key=value"
 	case freeText:
 		return "free text"
 	default:
@@ -192,14 +192,13 @@ func getNeedleInHaystackQuery() []byte {
 	time := time.Now().UnixMilli()
 	time90d := time - (90 * 24 * 60 * 60 * 1000)
 
-	randUUID := "c45d2c0d-9c93-4f1b-9e79-7d2b71bb6eb8"
 	var matchAllQuery = map[string]interface{}{
 		"query": map[string]interface{}{
 			"bool": map[string]interface{}{
 				"must": []interface{}{
 					map[string]interface{}{
-						"match": map[string]interface{}{
-							"ident": randUUID,
+						"query_string": map[string]interface{}{
+							"query": fmt.Sprintf("ident:%s", "ffa4c7d4-5f21-457b-89ea-b5ad29968510"),
 						},
 					},
 				},
@@ -226,6 +225,9 @@ func getNeedleInHaystackQuery() []byte {
 
 // matches a simple key=value using query_string
 func getSimpleFilter() []byte {
+	time := time.Now().UnixMilli()
+	time90d := time - (90 * 24 * 60 * 60 * 1000)
+
 	var matchAllQuery = map[string]interface{}{
 		"query": map[string]interface{}{
 			"bool": map[string]interface{}{
@@ -233,6 +235,17 @@ func getSimpleFilter() []byte {
 					map[string]interface{}{
 						"query_string": map[string]interface{}{
 							"query": fmt.Sprintf("state:%s", gofakeit.State()),
+						},
+					},
+				},
+				"filter": []interface{}{
+					map[string]interface{}{
+						"range": map[string]interface{}{
+							"timestamp": map[string]interface{}{
+								"gte":    time90d,
+								"lte":    time,
+								"format": "epoch_millis",
+							},
 						},
 					},
 				},
@@ -248,6 +261,8 @@ func getSimpleFilter() []byte {
 
 // free text search query for a job title
 func getFreeTextSearch() []byte {
+	time := time.Now().UnixMilli()
+	time90d := time - (90 * 24 * 60 * 60 * 1000)
 	var matchAllQuery = map[string]interface{}{
 		"query": map[string]interface{}{
 			"bool": map[string]interface{}{
@@ -255,6 +270,17 @@ func getFreeTextSearch() []byte {
 					map[string]interface{}{
 						"query_string": map[string]interface{}{
 							"query": gofakeit.JobTitle(),
+						},
+					},
+				},
+				"filter": []interface{}{
+					map[string]interface{}{
+						"range": map[string]interface{}{
+							"timestamp": map[string]interface{}{
+								"gte":    time90d,
+								"lte":    time,
+								"format": "epoch_millis",
+							},
 						},
 					},
 				},
@@ -299,7 +325,7 @@ func initResultMap(numIterations int) map[queryTypes][]float64 {
 	results[matchMultiple] = make([]float64, numIterations)
 	results[matchRange] = make([]float64, numIterations)
 	results[needleInHaystack] = make([]float64, numIterations)
-	results[simpleQuery] = make([]float64, numIterations)
+	results[keyValueQuery] = make([]float64, numIterations)
 	results[freeText] = make([]float64, numIterations)
 	return results
 }
@@ -342,8 +368,8 @@ func StartQuery(dest string, numIterations int, prefix string, verbose bool) {
 		results[needleInHaystack][i] = time
 
 		sQuery := getSimpleFilter()
-		time = sendSingleRequest(simpleQuery, client, sQuery, requestStr, verbose)
-		results[simpleQuery][i] = time
+		time = sendSingleRequest(keyValueQuery, client, sQuery, requestStr, verbose)
+		results[keyValueQuery][i] = time
 
 		fQuery := getFreeTextSearch()
 		time = sendSingleRequest(freeText, client, fQuery, requestStr, verbose)

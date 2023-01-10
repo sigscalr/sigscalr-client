@@ -21,6 +21,7 @@ var ingestCmd = &cobra.Command{
 		indexPrefix, _ := cmd.Flags().GetString("indexPrefix")
 		numIndices, _ := cmd.Flags().GetInt("numIndices")
 		generatorType, _ := cmd.Flags().GetString("generator")
+		ts, _ := cmd.Flags().GetBool("timestamp")
 		dataFile, _ := cmd.Flags().GetString("filePath")
 
 		log.Infof("processCount : %+v\n", processCount)
@@ -29,8 +30,8 @@ var ingestCmd = &cobra.Command{
 		log.Infof("batchSize : %+v\n", batchSize)
 		log.Infof("indexPrefix : %+v\n", indexPrefix)
 		log.Infof("numIndices : %+v\n", numIndices)
-		log.Infof("generatorType : %+v\n", generatorType)
-		ingest.StartIngestion(generatorType, dataFile, totalEvents, batchSize, dest, indexPrefix, numIndices, processCount)
+		log.Infof("generatorType : %+v. Add timestamp: %+v\n", generatorType, ts)
+		ingest.StartIngestion(generatorType, dataFile, totalEvents, batchSize, dest, indexPrefix, numIndices, processCount, ts)
 	},
 }
 
@@ -58,6 +59,7 @@ func init() {
 	ingestCmd.PersistentFlags().IntP("processCount", "p", 1, "Number of parallel process to ingest data from.")
 	ingestCmd.PersistentFlags().IntP("totalEvents", "t", 1000000, "Total number of events to send")
 	ingestCmd.PersistentFlags().IntP("batchSize", "b", 100, "Batch size")
+	ingestCmd.Flags().BoolP("timestamp", "s", false, "Add timestamp in payload")
 	ingestCmd.PersistentFlags().IntP("numIndices", "n", 1, "number of indices to ingest to")
 	ingestCmd.PersistentFlags().StringP("generator", "g", "static", "type of generator to use. Options=[static,dynamic,file]. If file is selected, -x/--filePath must be specified")
 	ingestCmd.PersistentFlags().StringP("filePath", "x", "", "path to json file to use as logs")

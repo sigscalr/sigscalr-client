@@ -42,15 +42,33 @@ type FileReader struct {
 // Repeats the same log line each time
 type StaticReader struct {
 	logLine []byte
+	ts      bool
 }
 
 type DynamicReader struct {
 	baseBody  map[string]interface{}
 	tNowEpoch uint64
+	ts        bool
 	faker     *gofakeit.Faker
 }
 
-func randomizeBody(f *gofakeit.Faker, m map[string]interface{}, ts uint64) {
+func InitDynamicReader(ts bool) *DynamicReader {
+	return &DynamicReader{
+		ts: ts,
+	}
+}
+
+func InitStaticReader(ts bool) *StaticReader {
+	return &StaticReader{
+		ts: ts,
+	}
+}
+
+func InitFileReader() *FileReader {
+	return &FileReader{}
+}
+
+func randomizeBody(f *gofakeit.Faker, m map[string]interface{}, addts bool) {
 	randNum := fastrand.Uint32n(1_000)
 	// sentenceLen := int(fastrand.Uint32n(25))
 	m["batch"] = fmt.Sprintf("batch-%d", randNum)
@@ -87,18 +105,19 @@ func randomizeBody(f *gofakeit.Faker, m map[string]interface{}, ts uint64) {
 	m["group"] = fmt.Sprintf("group %d", fastrand.Uint32n(2))
 	m["question"] = f.Question()
 	m["latency"] = fastrand.Uint32n(10_000_000)
-	m["timestamp"] = ts
+
+	if addts {
+		m["timestamp"] = uint64(time.Now().UnixMilli())
+	}
 }
 
 func (r *DynamicReader) generateRandomBody() {
-	randomizeBody(r.faker, r.baseBody, r.tNowEpoch)
-	r.tNowEpoch -= 2
+	randomizeBody(r.faker, r.baseBody, r.ts)
 }
 
 func (r *DynamicReader) Init(fName ...string) error {
 	r.faker = gofakeit.NewUnlocked(int64(fastrand.Uint32n(1_000)))
 	r.baseBody = make(map[string]interface{})
-	r.tNowEpoch = uint64(time.Now().UnixMilli() - 10_000_000)
 	r.generateRandomBody()
 	body, err := json.Marshal(r.baseBody)
 	if err != nil {
@@ -118,7 +137,7 @@ func (r *DynamicReader) GetLogLine() ([]byte, error) {
 func (r *StaticReader) Init(fName ...string) error {
 	m := make(map[string]interface{})
 	f := gofakeit.NewUnlocked(int64(fastrand.Uint32n(1_000)))
-	randomizeBody(f, m, uint64(time.Now().UnixMilli())-80*24*3600*1000)
+	randomizeBody(f, m, r.ts)
 	body, err := json.Marshal(m)
 	if err != nil {
 		return err
