@@ -42,13 +42,15 @@ var queryCmd = &cobra.Command{
 		dest, _ := cmd.Flags().GetString("dest")
 		numIterations, _ := cmd.Flags().GetInt("count")
 		verbose, _ := cmd.Flags().GetBool("verbose")
+		continuous, _ := cmd.Flags().GetBool("continuous")
 		indexPrefix, _ := cmd.Flags().GetString("indexPrefix")
 
 		log.Infof("dest : %+v\n", dest)
 		log.Infof("numIterations : %+v\n", numIterations)
 		log.Infof("indexPrefix : %+v\n", indexPrefix)
 		log.Infof("verbose : %+v\n", verbose)
-		query.StartQuery(dest, numIterations, indexPrefix, verbose)
+		log.Infof("continuous : %+v\n", continuous)
+		query.StartQuery(dest, numIterations, indexPrefix, continuous, verbose)
 	},
 }
 
@@ -64,8 +66,9 @@ func init() {
 	ingestCmd.PersistentFlags().StringP("generator", "g", "static", "type of generator to use. Options=[static,dynamic,file]. If file is selected, -x/--filePath must be specified")
 	ingestCmd.PersistentFlags().StringP("filePath", "x", "", "path to json file to use as logs")
 
-	queryCmd.PersistentFlags().IntP("count", "c", 10, "number of times to run entire query suite")
+	queryCmd.PersistentFlags().IntP("numIterations", "n", 10, "number of times to run entire query suite")
 	queryCmd.Flags().BoolP("verbose", "v", false, "Verbose querying will output raw docs returned by queries")
+	queryCmd.Flags().BoolP("continuous", "c", false, "Continuous querying will ignore -c and -v and will continuously send queries to the destination")
 
 	rootCmd.AddCommand(ingestCmd)
 	rootCmd.AddCommand(queryCmd)

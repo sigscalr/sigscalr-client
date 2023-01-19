@@ -341,14 +341,18 @@ func logQuerySummary(numIterations int, res map[queryTypes][]float64) {
 	}
 }
 
-func StartQuery(dest string, numIterations int, prefix string, verbose bool) {
+func StartQuery(dest string, numIterations int, prefix string, continuous, verbose bool) {
 	client := http.DefaultClient
-	if numIterations == 0 {
+	if numIterations == 0 && !continuous {
 		log.Fatalf("Iterations must be greater than 0")
 	}
 
 	requestStr := fmt.Sprintf("%s/%s*/_search", dest, prefix)
 	log.Infof("Using destination URL %+s", requestStr)
+	if continuous {
+		runContinuousQueries(client, requestStr)
+	}
+
 	results := initResultMap(numIterations)
 	for i := 0; i < numIterations; i++ {
 		rawMatchAll := getMatchAllQuery()
@@ -377,4 +381,24 @@ func StartQuery(dest string, numIterations int, prefix string, verbose bool) {
 	}
 
 	logQuerySummary(numIterations, results)
+}
+
+// this will never save time statistics per query and will always log results
+func runContinuousQueries(client *http.Client, requestStr string) {
+	for {
+		rawMatchAll := getMatchAllQuery()
+		_ = sendSingleRequest(matchAll, client, rawMatchAll, requestStr, true)
+
+		rawMultiple := getMatchMultipleQuery()
+		_ = sendSingleRequest(matchMultiple, client, rawMultiple, requestStr, true)
+
+		rawRange := getRangeQuery()
+		_ = sendSingleRequest(matchRange, client, rawRange, requestStr, true)
+
+		sQuery := getSimpleFilter()
+		_ = sendSingleRequest(keyValueQuery, client, sQuery, requestStr, true)
+
+		fQuery := getFreeTextSearch()
+		_ = sendSingleRequest(freeText, client, fQuery, requestStr, true)
+	}
 }

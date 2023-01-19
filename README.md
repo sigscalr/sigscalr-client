@@ -11,7 +11,7 @@ Options:
 ```
   -b, --batchSize int        Batch size (default 100)
   -d, --dest string          Destination URL. Client will append /_bulk
-  -g, --generator string     type of generator to use. Options=[static,dynamic,file]. If file is selected, -x/--filePath must be specified (default "static")
+  -g, --generator string     type of generator to use. Options=[static,dynamic-user,file]. If file is selected, -x/--filePath must be specified (default "static")
   
   -x, --filePath string      path to json file containing loglines to send to server
   -h, --help                 help for ingest
@@ -25,7 +25,7 @@ Options:
 Different Types of Readers:
 
 1. Static: Sends the same payload over and over
-2. Dynamic: Sends randomized payloads each time
+2. Dynamic User: Randomly Generates user events. These random events are generated using [gofakeit](github.com/brianvoe/gofakeit/v6).
 3. File: Reads a file line by line. Expects each line is a new json. Will loop over file if necessary
 
 ## Query
@@ -40,9 +40,10 @@ Options:
 ```
 -d, --dest string          Destination URL. Client will append /{indexPrefix}*/_search
 -i, --indexPrefix string   Index prefix to search (default "ind")
--c, --count int            Number of iterations to send query suite (default 10)
+-n, --numIterations int    Number of iterations to send query suite (default 10)
 
 -v  verbose                Output hits and elapsed time for each query
+-c  continuous             If true, ignores -n and -v and will continuously send queries to the destination and will log results
 ```
 
 
