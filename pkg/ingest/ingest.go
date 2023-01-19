@@ -45,7 +45,7 @@ func sendRequest(client *http.Client, lines string, url string) {
 
 // var frand fastrand.RNG
 
-func generateBulkBody(recs int, actionLine string, rdr utils.Reader) (string, error) {
+func generateBulkBody(recs int, actionLine string, rdr utils.Generator) (string, error) {
 	bb := bytebufferpool.Get()
 	defer bytebufferpool.Put(bb)
 
@@ -66,7 +66,7 @@ func getActionLine(i int) string {
 	return actionLines[i%len(actionLines)]
 }
 
-func runIngestion(rdr utils.Reader, wg *sync.WaitGroup, url string, totalEvents, batchSize, processNo int, indexSuffix string, ctr *uint64) {
+func runIngestion(rdr utils.Generator, wg *sync.WaitGroup, url string, totalEvents, batchSize, processNo int, indexSuffix string, ctr *uint64) {
 	defer wg.Done()
 	eventCounter := 0
 	t := http.DefaultTransport.(*http.Transport).Clone()
@@ -110,14 +110,14 @@ func populateActionLines(idxPrefix string, numIndices int) {
 	}
 }
 
-func getReaderFromArgs(gentype, str string, ts bool) (utils.Reader, error) {
-	var rdr utils.Reader
+func getReaderFromArgs(gentype, str string, ts bool) (utils.Generator, error) {
+	var rdr utils.Generator
 	switch gentype {
 	case "", "static":
 		log.Infof("Initializing static reader")
-		rdr = utils.InitStaticReader(ts)
-	case "dynamic":
-		rdr = utils.InitDynamicReader(ts)
+		rdr = utils.InitStaticGenerator(ts)
+	case "dynamic-user":
+		rdr = utils.InitDynamicUserGenerator(ts)
 	case "file":
 		log.Infof("Initializing file reader from %s", str)
 		rdr = utils.InitFileReader()

@@ -17,7 +17,7 @@ import (
 
 var json = jsoniter.ConfigFastest
 
-type Reader interface {
+type Generator interface {
 	Init(fName ...string) error
 	GetLogLine() ([]byte, error)
 }
@@ -40,26 +40,26 @@ type FileReader struct {
 }
 
 // Repeats the same log line each time
-type StaticReader struct {
+type StaticGenerator struct {
 	logLine []byte
 	ts      bool
 }
 
-type DynamicReader struct {
+type DynamicUserGenerator struct {
 	baseBody  map[string]interface{}
 	tNowEpoch uint64
 	ts        bool
 	faker     *gofakeit.Faker
 }
 
-func InitDynamicReader(ts bool) *DynamicReader {
-	return &DynamicReader{
+func InitDynamicUserGenerator(ts bool) *DynamicUserGenerator {
+	return &DynamicUserGenerator{
 		ts: ts,
 	}
 }
 
-func InitStaticReader(ts bool) *StaticReader {
-	return &StaticReader{
+func InitStaticGenerator(ts bool) *StaticGenerator {
+	return &StaticGenerator{
 		ts: ts,
 	}
 }
@@ -111,11 +111,11 @@ func randomizeBody(f *gofakeit.Faker, m map[string]interface{}, addts bool) {
 	}
 }
 
-func (r *DynamicReader) generateRandomBody() {
+func (r *DynamicUserGenerator) generateRandomBody() {
 	randomizeBody(r.faker, r.baseBody, r.ts)
 }
 
-func (r *DynamicReader) Init(fName ...string) error {
+func (r *DynamicUserGenerator) Init(fName ...string) error {
 	r.faker = gofakeit.NewUnlocked(int64(fastrand.Uint32n(1_000)))
 	r.baseBody = make(map[string]interface{})
 	r.generateRandomBody()
@@ -129,12 +129,12 @@ func (r *DynamicReader) Init(fName ...string) error {
 	return nil
 }
 
-func (r *DynamicReader) GetLogLine() ([]byte, error) {
+func (r *DynamicUserGenerator) GetLogLine() ([]byte, error) {
 	r.generateRandomBody()
 	return json.Marshal(r.baseBody)
 }
 
-func (r *StaticReader) Init(fName ...string) error {
+func (r *StaticGenerator) Init(fName ...string) error {
 	m := make(map[string]interface{})
 	f := gofakeit.NewUnlocked(int64(fastrand.Uint32n(1_000)))
 	randomizeBody(f, m, r.ts)
@@ -148,7 +148,7 @@ func (r *StaticReader) Init(fName ...string) error {
 	return nil
 }
 
-func (sr *StaticReader) GetLogLine() ([]byte, error) {
+func (sr *StaticGenerator) GetLogLine() ([]byte, error) {
 	return sr.logLine, nil
 }
 
