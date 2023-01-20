@@ -17,6 +17,7 @@ var ingestCmd = &cobra.Command{
 		processCount, _ := cmd.Flags().GetInt("processCount")
 		dest, _ := cmd.Flags().GetString("dest")
 		totalEvents, _ := cmd.Flags().GetInt("totalEvents")
+		continuous, _ := cmd.Flags().GetBool("continuous")
 		batchSize, _ := cmd.Flags().GetInt("batchSize")
 		indexPrefix, _ := cmd.Flags().GetString("indexPrefix")
 		numIndices, _ := cmd.Flags().GetInt("numIndices")
@@ -26,12 +27,12 @@ var ingestCmd = &cobra.Command{
 
 		log.Infof("processCount : %+v\n", processCount)
 		log.Infof("dest : %+v\n", dest)
-		log.Infof("totalEvents : %+v\n", totalEvents)
+		log.Infof("totalEvents : %+v. Continuous: %+v\n", totalEvents, continuous)
 		log.Infof("batchSize : %+v\n", batchSize)
 		log.Infof("indexPrefix : %+v\n", indexPrefix)
 		log.Infof("numIndices : %+v\n", numIndices)
 		log.Infof("generatorType : %+v. Add timestamp: %+v\n", generatorType, ts)
-		ingest.StartIngestion(generatorType, dataFile, totalEvents, batchSize, dest, indexPrefix, numIndices, processCount, ts)
+		ingest.StartIngestion(generatorType, dataFile, totalEvents, continuous, batchSize, dest, indexPrefix, numIndices, processCount, ts)
 	},
 }
 
@@ -60,6 +61,7 @@ func init() {
 
 	ingestCmd.PersistentFlags().IntP("processCount", "p", 1, "Number of parallel process to ingest data from.")
 	ingestCmd.PersistentFlags().IntP("totalEvents", "t", 1000000, "Total number of events to send")
+	ingestCmd.Flags().BoolP("continuous", "c", false, "Continous ingestion will ingore -t and will constantly send events as fast as possible")
 	ingestCmd.PersistentFlags().IntP("batchSize", "b", 100, "Batch size")
 	ingestCmd.Flags().BoolP("timestamp", "s", false, "Add timestamp in payload")
 	ingestCmd.PersistentFlags().IntP("numIndices", "n", 1, "number of indices to ingest to")
