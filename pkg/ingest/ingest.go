@@ -66,7 +66,8 @@ func getActionLine(i int) string {
 	return actionLines[i%len(actionLines)]
 }
 
-func runIngestion(rdr utils.Generator, wg *sync.WaitGroup, url string, totalEvents, batchSize, processNo int, indexSuffix string, ctr *uint64) {
+func runIngestion(rdr utils.Generator, wg *sync.WaitGroup, url string, totalEvents int, continous bool,
+	batchSize, processNo int, indexSuffix string, ctr *uint64) {
 	defer wg.Done()
 	eventCounter := 0
 	t := http.DefaultTransport.(*http.Transport).Clone()
@@ -79,10 +80,10 @@ func runIngestion(rdr utils.Generator, wg *sync.WaitGroup, url string, totalEven
 	}
 
 	i := 0
-	for eventCounter < totalEvents {
+	for continous || eventCounter < totalEvents {
 
 		recsInBatch := batchSize
-		if eventCounter+batchSize > totalEvents {
+		if !continous && eventCounter+batchSize > totalEvents {
 			recsInBatch = totalEvents - eventCounter
 		}
 		actionLine := getActionLine(i)
@@ -128,8 +129,8 @@ func getReaderFromArgs(gentype, str string, ts bool) (utils.Generator, error) {
 	return rdr, err
 }
 
-func StartIngestion(generatorType, dataFile string, totalEvents int, batchSize int, url string,
-	indexPrefix string, numIndices, processCount int, addTs bool) {
+func StartIngestion(generatorType, dataFile string, totalEvents int, continuous bool,
+	batchSize int, url string, indexPrefix string, numIndices, processCount int, addTs bool) {
 	log.Println("Starting ingestion at ", url, "...")
 	var wg sync.WaitGroup
 	totalEventsPerProcess := totalEvents / processCount
@@ -145,7 +146,7 @@ func StartIngestion(generatorType, dataFile string, totalEvents int, batchSize i
 		if err != nil {
 			log.Fatalf("StartIngestion: failed to initalize reader! %+v", err)
 		}
-		go runIngestion(reader, &wg, url, totalEventsPerProcess, batchSize, i+1, indexPrefix, &totalSent)
+		go runIngestion(reader, &wg, url, totalEventsPerProcess, continuous, batchSize, i+1, indexPrefix, &totalSent)
 	}
 
 	go func() {
