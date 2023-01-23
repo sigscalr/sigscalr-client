@@ -3,6 +3,7 @@ package cmd
 import (
 	"verifier/pkg/ingest"
 	"verifier/pkg/query"
+	"verifier/pkg/trace"
 
 	log "github.com/sirupsen/logrus"
 
@@ -62,6 +63,7 @@ var traceCmd = &cobra.Command{
 		log.Infof("file : %+v\n", file)
 		log.Infof("totalTraces : %+v\n", totalTraces)
 		log.Infof("maxSpans : %+v\n", maxSpans)
+		trace.StartTraceGeneration(file, totalTraces, maxSpans)
 	},
 }
 
