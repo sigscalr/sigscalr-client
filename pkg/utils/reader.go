@@ -9,7 +9,7 @@ import (
 	"time"
 	"unsafe"
 
-	"github.com/google/uuid"
+	"github.com/brianvoe/gofakeit/v6"
 	jsoniter "github.com/json-iterator/go"
 	log "github.com/sirupsen/logrus"
 	"github.com/valyala/fastrand"
@@ -17,7 +17,7 @@ import (
 
 var json = jsoniter.ConfigFastest
 
-type Reader interface {
+type Generator interface {
 	Init(fName ...string) error
 	GetLogLine() ([]byte, error)
 }
@@ -40,79 +40,104 @@ type FileReader struct {
 }
 
 // Repeats the same log line each time
-type StaticReader struct {
+type StaticGenerator struct {
 	logLine []byte
+	ts      bool
 }
 
-type DynamicReader struct {
-	baseBody map[string]interface{}
+type DynamicUserGenerator struct {
+	baseBody  map[string]interface{}
+	tNowEpoch uint64
+	ts        bool
+	faker     *gofakeit.Faker
 }
 
-var cold []string = []string{"iOS", "macOS", "windows", "android", "linux"}
-var coldOptions uint32 = uint32(len(cold))
+func InitDynamicUserGenerator(ts bool) *DynamicUserGenerator {
+	return &DynamicUserGenerator{
+		ts: ts,
+	}
+}
 
-var cole []string = []string{"abc def", "ghi jkl", "mno pqr", "stu vwx", "yz"}
-var coleOptions uint32 = uint32(len(cole))
+func InitStaticGenerator(ts bool) *StaticGenerator {
+	return &StaticGenerator{
+		ts: ts,
+	}
+}
 
-var colf []string = []string{"us-east-1", "us-east-2", "us-west-1", "us-west-2", "ap-south-1", "eu-west-1", "me-south-1"}
-var colfOptions uint32 = uint32(len(colf))
+func InitFileReader() *FileReader {
+	return &FileReader{}
+}
 
-func generateRandomBody() map[string]interface{} {
-	ev := make(map[string]interface{})
-
+func randomizeBody(f *gofakeit.Faker, m map[string]interface{}, addts bool) {
 	randNum := fastrand.Uint32n(1_000)
-	ev["batch"] = fmt.Sprintf("batch-%d", randNum)
-	ev["traffic_flags"] = 8193
-	ev["inbound_if"] = "1103823372288"
-	ev["os"] = cold[fastrand.Uint32n(coldOptions)]
-	ev["pod_name"] = cole[fastrand.Uint32n(coleOptions)]
-	ev["region"] = colf[fastrand.Uint32n(colfOptions)]
-	ev["ident"] = uuid.NewString()
-	ev["dst_model"] = fmt.Sprintf("S%d", fastrand.Uint32n(50))
-	ev["to"] = "ethernet4Zone-test4"
-	ev["group"] = fmt.Sprintf("group %d", fastrand.Uint32n(2))
-	ev["xff_ip"] = "00000000000000000000ffff02020202"
-	ev["dstuser"] = "funccompanysaf3ti"
-	ev["seqno"] = 6922966563614901991
-	ev["tunneled"] = "gtpv1-c"
-	ev["latency"] = fastrand.Uint32n(10_000_000)
-	return ev
+	// sentenceLen := int(fastrand.Uint32n(25))
+	m["batch"] = fmt.Sprintf("batch-%d", randNum)
+	p := f.Person()
+	m["first_name"] = p.FirstName
+	m["last_name"] = p.LastName
+	m["gender"] = p.Gender
+	m["ssn"] = p.SSN
+	m["image"] = p.Image
+	m["hobby"] = p.Hobby
+
+	m["job_description"] = p.Job.Descriptor
+	m["job_level"] = p.Job.Level
+	m["job_title"] = p.Job.Title
+	m["job_company"] = p.Job.Company
+
+	m["address"] = p.Address.Address
+	m["street"] = p.Address.Street
+	m["city"] = p.Address.City
+	m["state"] = p.Address.State
+	m["zip"] = p.Address.Zip
+	m["country"] = p.Address.Country
+	m["latitude"] = p.Address.Latitude
+	m["longitude"] = p.Address.Longitude
+	m["user_phone"] = p.Contact.Phone
+	m["user_email"] = p.Contact.Email
+
+	m["user_color"] = f.Color()
+	m["app_name"] = f.AppName()
+	m["app_version"] = f.AppVersion()
+	m["ident"] = f.UUID()
+	m["user_agent"] = f.UserAgent()
+	m["url"] = f.URL()
+	m["group"] = fmt.Sprintf("group %d", fastrand.Uint32n(2))
+	m["question"] = f.Question()
+	m["latency"] = fastrand.Uint32n(10_000_000)
+
+	if addts {
+		m["timestamp"] = uint64(time.Now().UnixMilli())
+	}
 }
 
-func (r *DynamicReader) Init(fName ...string) error {
-	m := generateRandomBody()
-	body, err := json.Marshal(m)
+func (r *DynamicUserGenerator) generateRandomBody() {
+	randomizeBody(r.faker, r.baseBody, r.ts)
+}
+
+func (r *DynamicUserGenerator) Init(fName ...string) error {
+	r.faker = gofakeit.NewUnlocked(int64(fastrand.Uint32n(1_000)))
+	r.baseBody = make(map[string]interface{})
+	r.generateRandomBody()
+	body, err := json.Marshal(r.baseBody)
 	if err != nil {
 		return err
 	}
-	r.baseBody = m
 	stringSize := len(body) + int(unsafe.Sizeof(body))
 	log.Infof("Size of a random log line is %+v bytes", stringSize)
+	r.tNowEpoch = uint64(time.Now().UnixMilli()) - 80*24*3600*1000
 	return nil
 }
 
-func (r *DynamicReader) GetLogLine() ([]byte, error) {
-	err := r.randomizeDoc()
-	if err != nil {
-		return []byte{}, err
-	}
+func (r *DynamicUserGenerator) GetLogLine() ([]byte, error) {
+	r.generateRandomBody()
 	return json.Marshal(r.baseBody)
 }
 
-func (r *DynamicReader) randomizeDoc() error {
-	r.baseBody["batch"] = fmt.Sprintf("batch-%d", fastrand.Uint32n(1_000))
-	r.baseBody["os"] = cold[fastrand.Uint32n(coldOptions)]
-	r.baseBody["pod_name"] = cole[fastrand.Uint32n(coleOptions)]
-	r.baseBody["region"] = colf[fastrand.Uint32n(colfOptions)]
-	r.baseBody["ident"] = uuid.NewString()
-	r.baseBody["dst_model"] = fmt.Sprintf("S%d", fastrand.Uint32n(50))
-	r.baseBody["group"] = fmt.Sprintf("group %d", fastrand.Uint32n(2))
-	r.baseBody["latency"] = fastrand.Uint32n(10_000)
-	return nil
-}
-
-func (r *StaticReader) Init(fName ...string) error {
-	m := generateRandomBody()
+func (r *StaticGenerator) Init(fName ...string) error {
+	m := make(map[string]interface{})
+	f := gofakeit.NewUnlocked(int64(fastrand.Uint32n(1_000)))
+	randomizeBody(f, m, r.ts)
 	body, err := json.Marshal(m)
 	if err != nil {
 		return err
@@ -123,7 +148,7 @@ func (r *StaticReader) Init(fName ...string) error {
 	return nil
 }
 
-func (sr *StaticReader) GetLogLine() ([]byte, error) {
+func (sr *StaticGenerator) GetLogLine() ([]byte, error) {
 	return sr.logLine, nil
 }
 

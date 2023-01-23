@@ -45,17 +45,17 @@ func sendRequest(client *http.Client, lines string, url string) {
 
 // var frand fastrand.RNG
 
-func generateBulkBody(recs int, actionLine string, rdr utils.Reader) (string, error) {
+func generateBulkBody(recs int, actionLine string, rdr utils.Generator) (string, error) {
 	bb := bytebufferpool.Get()
 	defer bytebufferpool.Put(bb)
 
 	for i := 0; i < recs; i++ {
 		_, _ = bb.WriteString(actionLine)
-		log, err := rdr.GetLogLine()
+		logline, err := rdr.GetLogLine()
 		if err != nil {
 			return "", err
 		}
-		_, _ = bb.Write(log)
+		_, _ = bb.Write(logline)
 		_, _ = bb.WriteString("\n")
 	}
 	payLoad := bb.String()
@@ -66,7 +66,8 @@ func getActionLine(i int) string {
 	return actionLines[i%len(actionLines)]
 }
 
-func runIngestion(rdr utils.Reader, wg *sync.WaitGroup, url string, totalEvents, batchSize, processNo int, indexSuffix string, ctr *uint64) {
+func runIngestion(rdr utils.Generator, wg *sync.WaitGroup, url string, totalEvents int, continous bool,
+	batchSize, processNo int, indexSuffix string, ctr *uint64) {
 	defer wg.Done()
 	eventCounter := 0
 	t := http.DefaultTransport.(*http.Transport).Clone()
@@ -79,10 +80,10 @@ func runIngestion(rdr utils.Reader, wg *sync.WaitGroup, url string, totalEvents,
 	}
 
 	i := 0
-	for eventCounter < totalEvents {
+	for continous || eventCounter < totalEvents {
 
 		recsInBatch := batchSize
-		if eventCounter+batchSize > totalEvents {
+		if !continous && eventCounter+batchSize > totalEvents {
 			recsInBatch = totalEvents - eventCounter
 		}
 		actionLine := getActionLine(i)
@@ -110,17 +111,17 @@ func populateActionLines(idxPrefix string, numIndices int) {
 	}
 }
 
-func getReaderFromArgs(gentype, str string) (utils.Reader, error) {
-	var rdr utils.Reader
+func getReaderFromArgs(gentype, str string, ts bool) (utils.Generator, error) {
+	var rdr utils.Generator
 	switch gentype {
 	case "", "static":
 		log.Infof("Initializing static reader")
-		rdr = &utils.StaticReader{}
-	case "dynamic":
-		rdr = &utils.DynamicReader{}
+		rdr = utils.InitStaticGenerator(ts)
+	case "dynamic-user":
+		rdr = utils.InitDynamicUserGenerator(ts)
 	case "file":
 		log.Infof("Initializing file reader from %s", str)
-		rdr = &utils.FileReader{}
+		rdr = utils.InitFileReader()
 	default:
 		return nil, fmt.Errorf("unsupported reader type %s. Options=[static,dynamic,file]", gentype)
 	}
@@ -128,7 +129,8 @@ func getReaderFromArgs(gentype, str string) (utils.Reader, error) {
 	return rdr, err
 }
 
-func StartIngestion(generatorType, dataFile string, totalEvents int, batchSize int, url string, indexPrefix string, numIndices, processCount int) {
+func StartIngestion(generatorType, dataFile string, totalEvents int, continuous bool,
+	batchSize int, url string, indexPrefix string, numIndices, processCount int, addTs bool) {
 	log.Println("Starting ingestion at ", url, "...")
 	var wg sync.WaitGroup
 	totalEventsPerProcess := totalEvents / processCount
@@ -140,11 +142,11 @@ func StartIngestion(generatorType, dataFile string, totalEvents int, batchSize i
 
 	for i := 0; i < processCount; i++ {
 		wg.Add(1)
-		reader, err := getReaderFromArgs(generatorType, dataFile)
+		reader, err := getReaderFromArgs(generatorType, dataFile, addTs)
 		if err != nil {
 			log.Fatalf("StartIngestion: failed to initalize reader! %+v", err)
 		}
-		go runIngestion(reader, &wg, url, totalEventsPerProcess, batchSize, i+1, indexPrefix, &totalSent)
+		go runIngestion(reader, &wg, url, totalEventsPerProcess, continuous, batchSize, i+1, indexPrefix, &totalSent)
 	}
 
 	go func() {
