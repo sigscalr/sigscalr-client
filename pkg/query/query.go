@@ -74,7 +74,7 @@ func validateAndGetElapsedTime(qType queryTypes, esOutput map[string]interface{}
 
 func getMatchAllQuery() []byte {
 	time := time.Now().UnixMilli()
-	time90d := time - (90 * 24 * 60 * 60 * 1000)
+	time1d := time - (1 * 24 * 60 * 60 * 1000)
 	var matchAllQuery = map[string]interface{}{
 		"query": map[string]interface{}{
 			"bool": map[string]interface{}{
@@ -87,7 +87,7 @@ func getMatchAllQuery() []byte {
 					map[string]interface{}{
 						"range": map[string]interface{}{
 							"timestamp": map[string]interface{}{
-								"gte":    time90d,
+								"gte":    time1d,
 								"lte":    time,
 								"format": "epoch_millis",
 							},
@@ -107,7 +107,7 @@ func getMatchAllQuery() []byte {
 // job_title=<<random_title>> AND user_color=<<random_color>> AND j != "group 0"
 func getMatchMultipleQuery() []byte {
 	time := time.Now().UnixMilli()
-	time90d := time - (90 * 24 * 60 * 60 * 1000)
+	time1d := time - (1 * 24 * 60 * 60 * 1000)
 	var matchAllQuery = map[string]interface{}{
 		"query": map[string]interface{}{
 			"bool": map[string]interface{}{
@@ -127,7 +127,7 @@ func getMatchMultipleQuery() []byte {
 					map[string]interface{}{
 						"range": map[string]interface{}{
 							"timestamp": map[string]interface{}{
-								"gte":    time90d,
+								"gte":    time1d,
 								"lte":    time,
 								"format": "epoch_millis",
 							},
@@ -152,7 +152,7 @@ func getMatchMultipleQuery() []byte {
 // 10 <= latency <= 30
 func getRangeQuery() []byte {
 	time := time.Now().UnixMilli()
-	time90d := time - (90 * 24 * 60 * 60 * 1000)
+	time1d := time - (1 * 24 * 60 * 60 * 1000)
 	var matchAllQuery = map[string]interface{}{
 		"query": map[string]interface{}{
 			"bool": map[string]interface{}{
@@ -170,7 +170,7 @@ func getRangeQuery() []byte {
 					map[string]interface{}{
 						"range": map[string]interface{}{
 							"timestamp": map[string]interface{}{
-								"gte":    time90d,
+								"gte":    time1d,
 								"lte":    time,
 								"format": "epoch_millis",
 							},
@@ -190,7 +190,7 @@ func getRangeQuery() []byte {
 // matches a different uuid each query. This will likely have 0 hits
 func getNeedleInHaystackQuery() []byte {
 	time := time.Now().UnixMilli()
-	time90d := time - (90 * 24 * 60 * 60 * 1000)
+	time1d := time - (1 * 24 * 60 * 60 * 1000)
 
 	var matchAllQuery = map[string]interface{}{
 		"query": map[string]interface{}{
@@ -206,7 +206,7 @@ func getNeedleInHaystackQuery() []byte {
 					map[string]interface{}{
 						"range": map[string]interface{}{
 							"timestamp": map[string]interface{}{
-								"gte":    time90d,
+								"gte":    time1d,
 								"lte":    time,
 								"format": "epoch_millis",
 							},
@@ -226,7 +226,7 @@ func getNeedleInHaystackQuery() []byte {
 // matches a simple key=value using query_string
 func getSimpleFilter() []byte {
 	time := time.Now().UnixMilli()
-	time90d := time - (90 * 24 * 60 * 60 * 1000)
+	time1d := time - (1 * 24 * 60 * 60 * 1000)
 
 	var matchAllQuery = map[string]interface{}{
 		"query": map[string]interface{}{
@@ -242,7 +242,7 @@ func getSimpleFilter() []byte {
 					map[string]interface{}{
 						"range": map[string]interface{}{
 							"timestamp": map[string]interface{}{
-								"gte":    time90d,
+								"gte":    time1d,
 								"lte":    time,
 								"format": "epoch_millis",
 							},
@@ -262,7 +262,7 @@ func getSimpleFilter() []byte {
 // free text search query for a job title
 func getFreeTextSearch() []byte {
 	time := time.Now().UnixMilli()
-	time90d := time - (90 * 24 * 60 * 60 * 1000)
+	time1d := time - (1 * 24 * 60 * 60 * 1000)
 	var matchAllQuery = map[string]interface{}{
 		"query": map[string]interface{}{
 			"bool": map[string]interface{}{
@@ -277,7 +277,7 @@ func getFreeTextSearch() []byte {
 					map[string]interface{}{
 						"range": map[string]interface{}{
 							"timestamp": map[string]interface{}{
-								"gte":    time90d,
+								"gte":    time1d,
 								"lte":    time,
 								"format": "epoch_millis",
 							},
@@ -297,7 +297,6 @@ func getFreeTextSearch() []byte {
 func sendSingleRequest(qType queryTypes, client *http.Client, body []byte, url string, verbose bool) float64 {
 	req, err := http.NewRequest("POST", url, bytes.NewReader(body))
 	req.Header.Set("Content-Type", "application/json")
-	req.SetBasicAuth("admin", "Complexpass#123")
 
 	if err != nil {
 		log.Fatalf("sendRequest: http.NewRequest ERROR: %v", err)
