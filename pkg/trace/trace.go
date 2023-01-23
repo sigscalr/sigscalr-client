@@ -92,8 +92,8 @@ func generateTagBody(n int) []map[string]interface{} {
 		randNumEnv := fastrand.Uint32n(2)
 		randNumDc := fastrand.Uint32n(uint32(len(ar_dc)))
 		tags["cluster"] = fmt.Sprintf("cluster-%d", randNumCluster)
-		tags["env"] = fmt.Sprintf("%s", envs[randNumEnv])
-		tags["dc"] = fmt.Sprintf("%s", ar_dc[randNumDc])
+		tags["env"] = envs[randNumEnv]
+		tags["dc"] = ar_dc[randNumDc]
 		tags["request_id"] = fmt.Sprintf("request-%d", randNumrequest)
 		listOfTags[tagsCounter] = tags
 		tagsCounter += 1
