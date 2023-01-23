@@ -262,7 +262,7 @@ func getSimpleFilter() []byte {
 // free text search query for a job title
 func getFreeTextSearch() []byte {
 	time := time.Now().UnixMilli()
-	time1d := time - (1 * 24 * 60 * 60 * 1000)
+	time1hr := time - (1 * 60 * 60 * 1000)
 	var matchAllQuery = map[string]interface{}{
 		"query": map[string]interface{}{
 			"bool": map[string]interface{}{
@@ -277,7 +277,7 @@ func getFreeTextSearch() []byte {
 					map[string]interface{}{
 						"range": map[string]interface{}{
 							"timestamp": map[string]interface{}{
-								"gte":    time1d,
+								"gte":    time1hr,
 								"lte":    time,
 								"format": "epoch_millis",
 							},
