@@ -74,7 +74,7 @@ func validateAndGetElapsedTime(qType queryTypes, esOutput map[string]interface{}
 
 func getMatchAllQuery() []byte {
 	time := time.Now().UnixMilli()
-	time1d := time - (1 * 24 * 60 * 60 * 1000)
+	time1hr := time - (1 * 60 * 60 * 1000)
 	var matchAllQuery = map[string]interface{}{
 		"query": map[string]interface{}{
 			"bool": map[string]interface{}{
@@ -87,7 +87,7 @@ func getMatchAllQuery() []byte {
 					map[string]interface{}{
 						"range": map[string]interface{}{
 							"timestamp": map[string]interface{}{
-								"gte":    time1d,
+								"gte":    time1hr,
 								"lte":    time,
 								"format": "epoch_millis",
 							},
@@ -107,7 +107,7 @@ func getMatchAllQuery() []byte {
 // job_title=<<random_title>> AND user_color=<<random_color>> AND j != "group 0"
 func getMatchMultipleQuery() []byte {
 	time := time.Now().UnixMilli()
-	time1d := time - (1 * 24 * 60 * 60 * 1000)
+	time2hr := time - (2 * 24 * 60 * 60 * 1000)
 	var matchAllQuery = map[string]interface{}{
 		"query": map[string]interface{}{
 			"bool": map[string]interface{}{
@@ -127,7 +127,7 @@ func getMatchMultipleQuery() []byte {
 					map[string]interface{}{
 						"range": map[string]interface{}{
 							"timestamp": map[string]interface{}{
-								"gte":    time1d,
+								"gte":    time2hr,
 								"lte":    time,
 								"format": "epoch_millis",
 							},
@@ -190,7 +190,7 @@ func getRangeQuery() []byte {
 // matches a different uuid each query. This will likely have 0 hits
 func getNeedleInHaystackQuery() []byte {
 	time := time.Now().UnixMilli()
-	time1d := time - (1 * 24 * 60 * 60 * 1000)
+	time90d := time - (90 * 24 * 60 * 60 * 1000)
 
 	var matchAllQuery = map[string]interface{}{
 		"query": map[string]interface{}{
@@ -206,7 +206,7 @@ func getNeedleInHaystackQuery() []byte {
 					map[string]interface{}{
 						"range": map[string]interface{}{
 							"timestamp": map[string]interface{}{
-								"gte":    time1d,
+								"gte":    time90d,
 								"lte":    time,
 								"format": "epoch_millis",
 							},
@@ -226,7 +226,7 @@ func getNeedleInHaystackQuery() []byte {
 // matches a simple key=value using query_string
 func getSimpleFilter() []byte {
 	time := time.Now().UnixMilli()
-	time1d := time - (1 * 24 * 60 * 60 * 1000)
+	time6hr := time - (6 * 24 * 60 * 60 * 1000)
 
 	var matchAllQuery = map[string]interface{}{
 		"query": map[string]interface{}{
@@ -242,7 +242,7 @@ func getSimpleFilter() []byte {
 					map[string]interface{}{
 						"range": map[string]interface{}{
 							"timestamp": map[string]interface{}{
-								"gte":    time1d,
+								"gte":    time6hr,
 								"lte":    time,
 								"format": "epoch_millis",
 							},
