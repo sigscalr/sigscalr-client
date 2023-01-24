@@ -31,7 +31,7 @@ func StartTraceGeneration(file string, numTraces int, maxSpans int) {
 		var randomNumberOfSpans = 1 + fastrand.Uint32n(uint32(maxSpans))
 		spanCounter := 0
 		for spanCounter < int(randomNumberOfSpans) {
-			span := generateChildSpan(traceId,spanCounter)
+			span := generateChildSpan(traceId, spanCounter)
 			span["traceID"] = traceId
 			bytes, _ := json.Marshal(span)
 			w.Write(bytes)
@@ -44,7 +44,7 @@ func StartTraceGeneration(file string, numTraces int, maxSpans int) {
 	f.Close()
 }
 
-func generateChildSpan(traceId string,spanCounter int) map[string]interface{} {
+func generateChildSpan(traceId string, spanCounter int) map[string]interface{} {
 	span := make(map[string]interface{})
 	spanId := uuid.NewString()
 	span["spanID"] = spanId
@@ -59,11 +59,11 @@ func generateChildSpan(traceId string,spanCounter int) map[string]interface{} {
 	return span
 }
 
-func generateReferenceBody(traceId string, spanId string,spanCounter int) map[string]interface{} {
+func generateReferenceBody(traceId string, spanId string, spanCounter int) map[string]interface{} {
 	references := make(map[string]interface{})
-	if(spanCounter == 0){
+	if spanCounter == 0 {
 		references["refType"] = "CHILD_OF"
-	}else{
+	} else {
 		references["refType"] = "FollowsFrom"
 	}
 	references["traceID"] = traceId
@@ -72,37 +72,66 @@ func generateReferenceBody(traceId string, spanId string,spanCounter int) map[st
 }
 
 func generateProcessTagsBody(n int) []map[string]interface{} {
-	listOfTags := make([]map[string]interface{}, n)
+	listOfTags := make([]map[string]interface{}, n*3)
 	tagsCounter := 0
-	for tagsCounter < n {
+	for tagsCounter < 3*n {
 		tags := make(map[string]interface{})
 		randomNodeId := fastrand.Uint32n(2_000)
 		randomPodId := fastrand.Uint32n(20_000)
 		randomUserId := fastrand.Uint32n(2_000_000)
-		tags["node_id"] = fmt.Sprintf("node-%d", randomNodeId)
-		tags["pod_id"] = fmt.Sprintf("pod-%d", randomPodId)
-		tags["user_id"] = fmt.Sprintf("user-%d", randomUserId)
+		tags["key"] = "node_id"
+		tags["value"] = fmt.Sprintf("node-%d", randomNodeId)
+		tags["type"] = "string"
 		listOfTags[tagsCounter] = tags
-		tagsCounter += 1
+		tagsCounter++
+		tags = make(map[string]interface{})
+		tags["key"] = "pod_id"
+		tags["value"] = fmt.Sprintf("pod-%d", randomPodId)
+		tags["type"] = "string"
+		listOfTags[tagsCounter] = tags
+		tagsCounter++
+		tags = make(map[string]interface{})
+		tags["key"] = "user_id"
+		tags["value"] = fmt.Sprintf("user-%d", randomUserId)
+		tags["type"] = "string"
+		listOfTags[tagsCounter] = tags
+		tagsCounter++
 	}
 	return listOfTags
 }
 
 func generateTagBody(n int) []map[string]interface{} {
-	listOfTags := make([]map[string]interface{}, n)
+	listOfTags := make([]map[string]interface{}, n*4)
 	tagsCounter := 0
-	for tagsCounter < n {
+	for tagsCounter < 4*n {
 		tags := make(map[string]interface{})
 		randNumrequest := fastrand.Uint32n(2_000_000_0)
 		randNumCluster := fastrand.Uint32n(2_000)
 		randNumEnv := fastrand.Uint32n(2)
 		randNumDc := fastrand.Uint32n(uint32(len(ar_dc)))
-		tags["cluster"] = fmt.Sprintf("cluster-%d", randNumCluster)
-		tags["env"] = envs[randNumEnv]
-		tags["dc"] = ar_dc[randNumDc]
-		tags["request_id"] = fmt.Sprintf("request-%d", randNumrequest)
+		tags["key"] = "cluster"
+		tags["value"] = fmt.Sprintf("cluster-%d", randNumCluster)
+		tags["type"] = "string"
 		listOfTags[tagsCounter] = tags
-		tagsCounter += 1
+		tagsCounter++
+		tags = make(map[string]interface{})
+		tags["key"] = "env"
+		tags["value"] = envs[randNumEnv]
+		tags["type"] = "string"
+		listOfTags[tagsCounter] = tags
+		tagsCounter++
+		tags = make(map[string]interface{})
+		tags["key"] = "dc"
+		tags["value"] = ar_dc[randNumDc]
+		tags["type"] = "string"
+		listOfTags[tagsCounter] = tags
+		tagsCounter++
+		tags = make(map[string]interface{})
+		tags["key"] = "request_id"
+		tags["value"] = fmt.Sprintf("request-%d", randNumrequest)
+		tags["type"] = "string"
+		listOfTags[tagsCounter] = tags
+		tagsCounter++
 	}
 	return listOfTags
 }
