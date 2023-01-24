@@ -34,8 +34,14 @@ func StartTraceGeneration(file string, numTraces int, maxSpans int) {
 			span := generateChildSpan(traceId, spanCounter)
 			span["traceID"] = traceId
 			bytes, _ := json.Marshal(span)
-			w.Write(bytes)
-			w.WriteString("\n")
+			_, err1 := w.Write(bytes)
+			if err1 != nil {
+				log.Fatal(err1)
+			}
+			_, err2 := w.WriteString("\n")
+			if err2 != nil {
+				log.Fatal(err2)
+			}
 			spanCounter += 1
 		}
 		traceCounter += 1
@@ -72,9 +78,9 @@ func generateReferenceBody(traceId string, spanId string, spanCounter int) map[s
 }
 
 func generateProcessTagsBody(n int) []map[string]interface{} {
-	listOfTags := make([]map[string]interface{}, n*3)
+	listOfTags := make([]map[string]interface{}, 3)
 	tagsCounter := 0
-	for tagsCounter < 3*n {
+	for tagsCounter < 3 {
 		tags := make(map[string]interface{})
 		randomNodeId := fastrand.Uint32n(2_000)
 		randomPodId := fastrand.Uint32n(20_000)
