@@ -8,7 +8,6 @@ import (
 	"net/http"
 	"time"
 
-	"github.com/brianvoe/gofakeit/v6"
 	"github.com/montanaflynn/stats"
 
 	log "github.com/sirupsen/logrus"
@@ -114,12 +113,12 @@ func getMatchMultipleQuery() []byte {
 				"must": []interface{}{
 					map[string]interface{}{
 						"match": map[string]interface{}{
-							"job_title": gofakeit.JobTitle(),
+							"job_title": "Engineer",
 						},
 					},
 					map[string]interface{}{
 						"match": map[string]interface{}{
-							"user_color": gofakeit.Color(),
+							"job_description": "Senior",
 						},
 					},
 				},
@@ -234,7 +233,7 @@ func getSimpleFilter() []byte {
 				"must": []interface{}{
 					map[string]interface{}{
 						"query_string": map[string]interface{}{
-							"query": fmt.Sprintf("state:%s", gofakeit.State()),
+							"query": "state:California",
 						},
 					},
 				},
@@ -269,7 +268,7 @@ func getFreeTextSearch() []byte {
 				"must": []interface{}{
 					map[string]interface{}{
 						"query_string": map[string]interface{}{
-							"query": gofakeit.JobTitle(),
+							"query": "Representative",
 						},
 					},
 				},
@@ -329,19 +328,6 @@ func initResultMap(numIterations int) map[queryTypes][]float64 {
 	return results
 }
 
-// for each qtype, fix the raw query
-// this will make sure that subsequent queries are the same
-func populateRawQueries() map[queryTypes][]byte {
-	results := make(map[queryTypes][]byte)
-	results[matchAll] = getMatchAllQuery()
-	results[matchMultiple] = getMatchMultipleQuery()
-	results[matchRange] = getRangeQuery()
-	results[needleInHaystack] = getNeedleInHaystackQuery()
-	results[keyValueQuery] = getSimpleFilter()
-	results[freeText] = getFreeTextSearch()
-	return results
-}
-
 func logQuerySummary(numIterations int, res map[queryTypes][]float64) {
 	log.Infof("-----Query Summary. Completed %d iterations----", numIterations)
 	for qType, qRes := range res {
@@ -360,30 +346,58 @@ func StartQuery(dest string, numIterations int, prefix string, continuous, verbo
 	}
 
 	requestStr := fmt.Sprintf("%s/%s*/_search", dest, prefix)
-	rawQueries := populateRawQueries()
 
 	log.Infof("Using destination URL %+s", requestStr)
 	if continuous {
-		delete(rawQueries, needleInHaystack)
-		runContinuousQueries(client, rawQueries, requestStr)
+		runContinuousQueries(client, requestStr)
 	}
 
 	results := initResultMap(numIterations)
 	for i := 0; i < numIterations; i++ {
-		for qType, rawQuery := range rawQueries {
-			time := sendSingleRequest(qType, client, rawQuery, requestStr, verbose)
-			results[qType][i] = time
-		}
+		rawMatchAll := getMatchAllQuery()
+		time := sendSingleRequest(matchAll, client, rawMatchAll, requestStr, verbose)
+		results[matchAll][i] = time
+
+		rawMultiple := getMatchMultipleQuery()
+		time = sendSingleRequest(matchMultiple, client, rawMultiple, requestStr, verbose)
+		results[matchMultiple][i] = time
+
+		rawRange := getRangeQuery()
+		time = sendSingleRequest(matchRange, client, rawRange, requestStr, verbose)
+		results[matchRange][i] = time
+
+		rawNeeldQuery := getNeedleInHaystackQuery()
+		time = sendSingleRequest(needleInHaystack, client, rawNeeldQuery, requestStr, verbose)
+		results[needleInHaystack][i] = time
+
+		sQuery := getSimpleFilter()
+		time = sendSingleRequest(keyValueQuery, client, sQuery, requestStr, verbose)
+		results[keyValueQuery][i] = time
+
+		fQuery := getFreeTextSearch()
+		time = sendSingleRequest(freeText, client, fQuery, requestStr, verbose)
+		results[freeText][i] = time
 	}
 
 	logQuerySummary(numIterations, results)
 }
 
 // this will never save time statistics per query and will always log results
-func runContinuousQueries(client *http.Client, rawQueries map[queryTypes][]byte, requestStr string) {
+func runContinuousQueries(client *http.Client, requestStr string) {
 	for {
-		for qType, rawQuery := range rawQueries {
-			_ = sendSingleRequest(qType, client, rawQuery, requestStr, true)
-		}
+		rawMatchAll := getMatchAllQuery()
+		_ = sendSingleRequest(matchAll, client, rawMatchAll, requestStr, true)
+
+		rawMultiple := getMatchMultipleQuery()
+		_ = sendSingleRequest(matchMultiple, client, rawMultiple, requestStr, true)
+
+		rawRange := getRangeQuery()
+		_ = sendSingleRequest(matchRange, client, rawRange, requestStr, true)
+
+		sQuery := getSimpleFilter()
+		_ = sendSingleRequest(keyValueQuery, client, sQuery, requestStr, true)
+
+		fQuery := getFreeTextSearch()
+		_ = sendSingleRequest(freeText, client, fQuery, requestStr, true)
 	}
 }
