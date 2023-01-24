@@ -2,18 +2,25 @@ package utils
 
 import (
 	"fmt"
+	"strings"
 	"time"
 
+	"github.com/brianvoe/gofakeit/v6"
+	"github.com/liangyaopei/hyper"
 	"github.com/valyala/fastrand"
 )
 
+var metricsHLL = hyper.New(10, true)
+
 type MetricsGenerator struct {
-	nActiveTS uint32
+	nMetrics uint32
+	f        *gofakeit.Faker
 }
 
-func InitMetricsGenerator(activeTS int) *MetricsGenerator {
+func InitMetricsGenerator(nmetrics int) *MetricsGenerator {
 	return &MetricsGenerator{
-		nActiveTS: uint32(activeTS),
+		nMetrics: uint32(nmetrics),
+		f:        gofakeit.NewUnlocked(int64(fastrand.Uint32n(1_000))),
 	}
 }
 
@@ -28,13 +35,40 @@ func (mg *MetricsGenerator) GetLogLine() ([]byte, error) {
 func (mg *MetricsGenerator) GetRawLog() (map[string]interface{}, error) {
 
 	retVal := make(map[string]interface{})
-	retVal["metric"] = "test.metric"
+	mName := fmt.Sprintf("test.metric.%d", fastrand.Uint32n(mg.nMetrics))
+	retVal["metric"] = mName
 	retVal["timestamp"] = time.Now().Unix()
 	retVal["value"] = fastrand.Uint32n(1_000)
 
+	var str strings.Builder
+	str.WriteString(mName)
+
 	tags := make(map[string]interface{})
-	tags["ident"] = fastrand.Uint32n(mg.nActiveTS)
-	retVal["tags"] = tags
+
+	sColor := mg.f.SafeColor()
+	tags["color"] = sColor
+	str.WriteString(sColor)
+
+	group := fmt.Sprintf("group %d", fastrand.Uint32n(2))
+	tags["group"] = group
+	str.WriteString(group)
+
+	c := mg.f.Car()
+	tags["car_type"] = c.Type
+	str.WriteString(c.Type)
+
+	tags["fuel_type"] = c.Fuel
+	str.WriteString(c.Fuel)
+
+	tags["model"] = c.Model
+	str.WriteString(c.Model)
+
+	finalStr := str.String()
+	metricsHLL.AddString(finalStr)
 
 	return retVal, nil
+}
+
+func GetMetricsHLL() uint64 {
+	return metricsHLL.Count()
 }

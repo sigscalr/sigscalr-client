@@ -54,13 +54,13 @@ var metricsIngestCmd = &cobra.Command{
 		totalEvents, _ := cmd.Flags().GetInt("totalEvents")
 		continuous, _ := cmd.Flags().GetBool("continuous")
 		batchSize, _ := cmd.Flags().GetInt("batchSize")
-		activeTimeSeries, _ := cmd.Flags().GetInt("activeseries")
+		nMetrics, _ := cmd.Flags().GetInt("metrics")
 
 		log.Infof("processCount : %+v\n", processCount)
 		log.Infof("dest : %+v\n", dest)
 		log.Infof("totalEvents : %+v. Continuous: %+v\n", totalEvents, continuous)
-		log.Infof("batchSize : %+v. Active time series: %+v\n", batchSize, activeTimeSeries)
-		ingest.StartIngestion(ingest.OpenTSDB, "", "", totalEvents, continuous, batchSize, dest, "", 0, processCount, false, activeTimeSeries)
+		log.Infof("batchSize : %+v. Num metrics: %+v\n", batchSize, nMetrics)
+		ingest.StartIngestion(ingest.OpenTSDB, "", "", totalEvents, continuous, batchSize, dest, "", 0, processCount, false, nMetrics)
 	},
 }
 
@@ -97,7 +97,7 @@ func init() {
 	esBulkCmd.PersistentFlags().StringP("generator", "g", "static", "type of generator to use. Options=[static,dynamic,file]. If file is selected, -x/--filePath must be specified")
 	esBulkCmd.PersistentFlags().StringP("filePath", "x", "", "path to json file to use as logs")
 
-	metricsIngestCmd.PersistentFlags().IntP("activeseries", "a", 1_000_000, "Number of active timeseries to send every minute")
+	metricsIngestCmd.PersistentFlags().IntP("metrics", "m", 1_000, "Number of different metric names to send")
 
 	queryCmd.PersistentFlags().IntP("numIterations", "n", 10, "number of times to run entire query suite")
 	queryCmd.Flags().BoolP("verbose", "v", false, "Verbose querying will output raw docs returned by queries")

@@ -158,10 +158,10 @@ func populateActionLines(idxPrefix string, numIndices int) {
 	}
 }
 
-func getReaderFromArgs(iType IngestType, activsts int, gentype, str string, ts bool) (utils.Generator, error) {
+func getReaderFromArgs(iType IngestType, nummetrics int, gentype, str string, ts bool) (utils.Generator, error) {
 
 	if iType == OpenTSDB {
-		rdr := utils.InitMetricsGenerator(activsts)
+		rdr := utils.InitMetricsGenerator(nummetrics)
 		err := rdr.Init(str)
 		return rdr, err
 	}
@@ -184,7 +184,7 @@ func getReaderFromArgs(iType IngestType, activsts int, gentype, str string, ts b
 }
 
 func StartIngestion(iType IngestType, generatorType, dataFile string, totalEvents int, continuous bool,
-	batchSize int, url string, indexPrefix string, numIndices, processCount int, addTs bool, nActiveTs int) {
+	batchSize int, url string, indexPrefix string, numIndices, processCount int, addTs bool, nMetrics int) {
 	log.Printf("Starting ingestion at %+v for %+v", url, iType.String())
 	var wg sync.WaitGroup
 	totalEventsPerProcess := totalEvents / processCount
@@ -199,7 +199,7 @@ func StartIngestion(iType IngestType, generatorType, dataFile string, totalEvent
 
 	for i := 0; i < processCount; i++ {
 		wg.Add(1)
-		reader, err := getReaderFromArgs(iType, nActiveTs, generatorType, dataFile, addTs)
+		reader, err := getReaderFromArgs(iType, nMetrics, generatorType, dataFile, addTs)
 		if err != nil {
 			log.Fatalf("StartIngestion: failed to initalize reader! %+v", err)
 		}
@@ -222,6 +222,9 @@ readChannel:
 			totalTimeTaken := time.Since(startTime)
 			eventsPerSec := int64((totalSent - lastPrintedCount) / 60)
 			log.Infof("Total elapsed time:%s. Total sent events %+v. Events per second:%+v", totalTimeTaken, humanize.Comma(int64(totalSent)), humanize.Comma(eventsPerSec))
+			if iType == OpenTSDB {
+				log.Infof("Approximation of sent number of unique timeseries:%+v", utils.GetMetricsHLL())
+			}
 			lastPrintedCount = totalSent
 		}
 	}
