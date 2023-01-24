@@ -1,6 +1,7 @@
 package trace
 
 import (
+	"bufio"
 	"encoding/json"
 	"fmt"
 	"os"
@@ -20,6 +21,7 @@ func StartTraceGeneration(file string, numTraces int, maxSpans int) {
 	traceCounter := 0
 	log.Println("Opening file ", file, "...")
 	f, err := os.Create(file)
+	w := bufio.NewWriter(f)
 	if err != nil {
 		log.Fatal(err)
 	}
@@ -29,21 +31,20 @@ func StartTraceGeneration(file string, numTraces int, maxSpans int) {
 		var randomNumberOfSpans = 1 + fastrand.Uint32n(uint32(maxSpans))
 		spanCounter := 0
 		for spanCounter < int(randomNumberOfSpans) {
-			span := generateChildSpan(traceId)
+			span := generateChildSpan(traceId,spanCounter)
 			span["traceID"] = traceId
 			bytes, _ := json.Marshal(span)
-			_, err2 := f.Write(bytes)
-			if err2 != nil {
-				log.Fatal(err2)
-			}
+			w.Write(bytes)
+			w.WriteString("\n")
 			spanCounter += 1
 		}
 		traceCounter += 1
 	}
+	w.Flush()
 	f.Close()
 }
 
-func generateChildSpan(traceId string) map[string]interface{} {
+func generateChildSpan(traceId string,spanCounter int) map[string]interface{} {
 	span := make(map[string]interface{})
 	spanId := uuid.NewString()
 	span["spanID"] = spanId
@@ -54,12 +55,17 @@ func generateChildSpan(traceId string) map[string]interface{} {
 	span["duration"] = fastrand.Uint32n(1_000)
 	span["tags"] = generateTagBody(10)
 	span["process"] = generateProcessTagsBody(10)
-	span["references"] = generateReferenceBody(traceId, spanId)
+	span["references"] = generateReferenceBody(traceId, spanId, spanCounter)
 	return span
 }
 
-func generateReferenceBody(traceId string, spanId string) map[string]interface{} {
+func generateReferenceBody(traceId string, spanId string,spanCounter int) map[string]interface{} {
 	references := make(map[string]interface{})
+	if(spanCounter == 0){
+		references["refType"] = "CHILD_OF"
+	}else{
+		references["refType"] = "FollowsFrom"
+	}
 	references["traceID"] = traceId
 	references["spanID"] = spanId
 	return references
