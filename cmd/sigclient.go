@@ -42,7 +42,7 @@ var queryCmd = &cobra.Command{
 	Short: "send queries to SigScalr",
 	Run: func(cmd *cobra.Command, args []string) {
 		dest, _ := cmd.Flags().GetString("dest")
-		numIterations, _ := cmd.Flags().GetInt("count")
+		numIterations, _ := cmd.Flags().GetInt("numIterations")
 		verbose, _ := cmd.Flags().GetBool("verbose")
 		continuous, _ := cmd.Flags().GetBool("continuous")
 		indexPrefix, _ := cmd.Flags().GetString("indexPrefix")
