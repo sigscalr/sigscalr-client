@@ -8,7 +8,6 @@ import (
 	"net/http"
 	"time"
 
-	"github.com/brianvoe/gofakeit/v6"
 	"github.com/montanaflynn/stats"
 
 	log "github.com/sirupsen/logrus"
@@ -114,12 +113,12 @@ func getMatchMultipleQuery() []byte {
 				"must": []interface{}{
 					map[string]interface{}{
 						"match": map[string]interface{}{
-							"job_title": gofakeit.JobTitle(),
+							"job_title": "Engineer",
 						},
 					},
 					map[string]interface{}{
 						"match": map[string]interface{}{
-							"user_color": gofakeit.Color(),
+							"job_description": "Senior",
 						},
 					},
 				},
@@ -234,7 +233,7 @@ func getSimpleFilter() []byte {
 				"must": []interface{}{
 					map[string]interface{}{
 						"query_string": map[string]interface{}{
-							"query": fmt.Sprintf("state:%s", gofakeit.State()),
+							"query": "state:California",
 						},
 					},
 				},
@@ -269,7 +268,7 @@ func getFreeTextSearch() []byte {
 				"must": []interface{}{
 					map[string]interface{}{
 						"query_string": map[string]interface{}{
-							"query": gofakeit.JobTitle(),
+							"query": "Representative",
 						},
 					},
 				},
@@ -347,6 +346,7 @@ func StartQuery(dest string, numIterations int, prefix string, continuous, verbo
 	}
 
 	requestStr := fmt.Sprintf("%s/%s*/_search", dest, prefix)
+
 	log.Infof("Using destination URL %+s", requestStr)
 	if continuous {
 		runContinuousQueries(client, requestStr)
