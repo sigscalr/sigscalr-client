@@ -40,11 +40,19 @@ const PRINT_FREQ = 100_000
 
 var actionLines []string = []string{}
 
-func sendRequest(client *http.Client, lines []byte, url string) {
+func sendRequest(iType IngestType, client *http.Client, lines []byte, url string) {
 
 	buf := bytes.NewBuffer(lines)
 
-	requestStr := url + "/_bulk"
+	var requestStr string
+	switch iType {
+	case ESBulk:
+		requestStr = url + "/_bulk"
+	case OpenTSDB:
+		requestStr = url + "/api/put"
+	default:
+		log.Fatalf("unknown ingest type %+v", iType)
+	}
 
 	req, err := http.NewRequest("POST", requestStr, buf)
 
@@ -140,7 +148,7 @@ func runIngestion(iType IngestType, rdr utils.Generator, wg *sync.WaitGroup, url
 			log.Errorf("Error generating bulk body!: %v", err)
 			return
 		}
-		sendRequest(client, payload, url)
+		sendRequest(iType, client, payload, url)
 		eventCounter += recsInBatch
 		atomic.AddUint64(ctr, uint64(recsInBatch))
 	}

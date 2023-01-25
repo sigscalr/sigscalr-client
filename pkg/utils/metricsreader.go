@@ -63,6 +63,8 @@ func (mg *MetricsGenerator) GetRawLog() (map[string]interface{}, error) {
 	tags["model"] = c.Model
 	str.WriteString(c.Model)
 
+	retVal["tags"] = tags
+
 	finalStr := str.String()
 	metricsHLL.AddString(finalStr)
 
