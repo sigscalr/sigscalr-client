@@ -6,7 +6,6 @@ To send ingestion traffic to a server using ES Bulk API:
 ```bash
 $ ./load-test ingest -n 10_000 -d http://localhost:8081/elastic -p 2
 ```
-
 Options:
 ```
   -b, --batchSize int        Batch size (default 100)
@@ -48,6 +47,18 @@ Options:
 -c  continuous             If true, ignores -n and -v and will continuously send queries to the destination and will log results
 ```
 
+## Generating traces
+To generate synthetic traces: 
+```bash
+$ ./load-test traces -f test.json -t 1000 -s 10
+```
+
+Options:
+```
+-f, --filePath string          path to json file to output traces to 
+-t, --totalEvents int          number of total traces to generate
+-s, --maxSpans int             number of max spans for each trace
+```
 
 ## Utils
 
