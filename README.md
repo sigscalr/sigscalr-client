@@ -6,7 +6,6 @@ To send ingestion traffic to a server using ES Bulk API:
 ```bash
 $ ./load-test ingest -n 10_000 -d http://localhost:8081/elastic -p 2
 ```
-
 Options:
 ```
   -b, --batchSize int        Batch size (default 100)
