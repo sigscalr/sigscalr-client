@@ -60,14 +60,14 @@ var traceCmd = &cobra.Command{
 	Use:   "traces",
 	Short: "send traces to Sigscalr",
 	Run: func(cmd *cobra.Command, args []string) {
-		file, _ := cmd.Flags().GetString("filePath")
+		filePrefix, _ := cmd.Flags().GetString("filePrefix")
 		totalTraces, _ := cmd.Flags().GetInt("totalEvents")
 		maxSpans, _ := cmd.Flags().GetInt("maxSpans")
 
-		log.Infof("file : %+v\n", file)
+		log.Infof("file : %+v\n", filePrefix)
 		log.Infof("totalTraces : %+v\n", totalTraces)
 		log.Infof("maxSpans : %+v\n", maxSpans)
-		trace.StartTraceGeneration(file, totalTraces, maxSpans)
+		trace.StartTraceGeneration(filePrefix, totalTraces, maxSpans)
 	},
 }
 
@@ -88,7 +88,7 @@ func init() {
 	queryCmd.Flags().BoolP("verbose", "v", false, "Verbose querying will output raw docs returned by queries")
 	queryCmd.Flags().BoolP("continuous", "c", false, "Continuous querying will ignore -c and -v and will continuously send queries to the destination")
 
-	traceCmd.PersistentFlags().StringP("filePath", "f", "", "Name of file to output to")
+	traceCmd.PersistentFlags().StringP("filePrefix", "f", "", "Name of file to output to")
 	traceCmd.PersistentFlags().IntP("totalEvents", "t", 1000000, "Total number of traces to generate")
 	traceCmd.Flags().IntP("maxSpans", "s", 100, "max number of spans in a single trace")
 

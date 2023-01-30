@@ -6,6 +6,7 @@ import (
 	"encoding/hex"
 	"encoding/json"
 	"fmt"
+	"math"
 	"os"
 	"time"
 
@@ -16,6 +17,7 @@ import (
 
 var envs []string = []string{"prod", "dev"}
 var ar_dc []string = []string{"LON", "PAR", "DEN", "PHX", "DFW", "ATL", "BOS", "MHT", "JFK", "CAR", "LHR", "AMS", "FRA", "BOM", "CAL", "DEL", "MAD", "CHE", "FGH", "RTY", "UIO", "MHJ", "HAN", "YHT", "YUL", "MOL", "FOS", "KUN", "SRI", "FGR", "SUN", "PRI", "TAR", "SAR", "ADI", "ERT", "ITR", "DOW", "UQW", "QBF", "POK", "HQZ", "ZAS", "POK", "LIP", "UYQ", "OIK", "TRU", "POL", "NMC", "AZQ"}
+var operations []string = []string{"HTTP GET", "HTTP PUT", "HTTP POST","HTTP PATCH","HTTP DELETE"}
 
 func randomHex(n int) string {
 	bytes := make([]byte, n)
@@ -25,17 +27,16 @@ func randomHex(n int) string {
 	return hex.EncodeToString(bytes)
 }
 
-func StartTraceGeneration(file string, numTraces int, maxSpans int) {
+func StartTraceGeneration(filePrefix string, numTraces int, maxSpans int) {
 	log.Println("Starting generation of ", numTraces, " traces...")
 	traceCounter := 0
-	log.Println("Opening file ", file, "...")
-	log.Println("Opening file trace_service.json...")
-	service_file, err := os.Create("trace_service.json")
+	log.Println("Opening files for services and spans...")
+	service_file, err := os.Create(filePrefix + "_services.json")
 	service_writer := bufio.NewWriter(service_file)
 	if err != nil {
 		log.Fatal(err)
 	}
-	f, err := os.Create(file)
+	f, err := os.Create(filePrefix + "_spans.json")
 	w := bufio.NewWriter(f)
 	if err != nil {
 		log.Fatal(err)
@@ -47,16 +48,16 @@ func StartTraceGeneration(file string, numTraces int, maxSpans int) {
 		var randomNumberOfSpans = 1 + fastrand.Uint32n(uint32(maxSpans))
 		var prevSpanId = randomHex(8)
 		traceRoot := generateRootTrace(traceId)
-		WriteToFile(traceRoot,w)
 		serviceAndOperationJson := getServiceAndOperationObject(traceRoot["operationName"], traceRoot["process"])
-		WriteToServiceFile(serviceAndOperationJson, service_writer)
+		writeToFile(traceRoot,w)
+		writeToServiceFile(serviceAndOperationJson, service_writer)
 		spanCounter := 0
 		for spanCounter < int(randomNumberOfSpans) {
 			span,spanId := generateChildSpan(traceId, spanCounter,prevSpanId)
 			serviceAndOperationJson := getServiceAndOperationObject(span["operationName"], span["process"])
 			span["traceID"] = traceId
-			WriteToFile(span, w)
-			WriteToServiceFile(serviceAndOperationJson, service_writer)
+			writeToFile(span, w)
+			writeToServiceFile(serviceAndOperationJson, service_writer)
 			spanCounter += 1
 			prevSpanId = spanId
 		}
@@ -70,11 +71,12 @@ func StartTraceGeneration(file string, numTraces int, maxSpans int) {
 
 func generateRootTrace(traceId string) map[string]interface{} {
 	rootTrace := make(map[string]interface{})
+	randNumOperation := fastrand.Uint32n(uint32(len(operations)))
 	rootTrace["spanID"] = traceId
 	rootTrace["startTime"] = time.Now().UnixNano() / int64(time.Microsecond)
 	rootTrace["startTimeMillis"] = time.Now().UnixNano() / int64(time.Millisecond)
 	rootTrace["flags"] = 1
-	rootTrace["operationName"] = "HTTP GET"
+	rootTrace["operationName"] = operations[randNumOperation]
 	rootTrace["duration"] = fastrand.Uint32n(1_000)
 	rootTrace["tags"] = generateTagBody(10)
 	rootTrace["process"] = generateProcessTagsBody(10)
@@ -82,7 +84,7 @@ func generateRootTrace(traceId string) map[string]interface{} {
 	return rootTrace
 }
 
-func WriteToServiceFile(serviceAndOperationJson map[string]string, w *bufio.Writer) {
+func writeToServiceFile(serviceAndOperationJson map[string]string, w *bufio.Writer) {
 	bytes, _ := json.Marshal(serviceAndOperationJson)
 	_, err1 := w.Write(bytes)
 	if err1 != nil {
@@ -94,7 +96,7 @@ func WriteToServiceFile(serviceAndOperationJson map[string]string, w *bufio.Writ
 	}
 }
 
-func WriteToFile(span map[string]interface{}, w *bufio.Writer) {
+func writeToFile(span map[string]interface{}, w *bufio.Writer) {
 	bytes, _ := json.Marshal(span)
 	_, err1 := w.Write(bytes)
 	if err1 != nil {
@@ -120,11 +122,12 @@ func getServiceAndOperationObject(operationName, processTags interface{}) map[st
 func generateChildSpan(traceId string, spanCounter int,prevSpanId string) (map[string]interface{},string) {
 	span := make(map[string]interface{})
 	spanId := randomHex(8)
+	randNumOperation := fastrand.Uint32n(uint32(len(operations)))
 	span["spanID"] = spanId
 	span["startTime"] = time.Now().UnixNano() / int64(time.Microsecond)
 	span["startTimeMillis"] = time.Now().UnixNano() / int64(time.Millisecond)
 	span["flags"] = 1
-	span["operationName"] = "HTTP GET"
+	span["operationName"] = operations[randNumOperation]
 	span["duration"] = fastrand.Uint32n(1_000)
 	span["tags"] = generateTagBody(10)
 	span["process"] = generateProcessTagsBody(10)
@@ -152,66 +155,37 @@ func generateProcessTagsBody(n int) map[string]interface{} {
 	randomServiceId := fastrand.Uint32n(10)
 	processBody["serviceName"] = fmt.Sprintf("service-%d", randomServiceId)
 	listOfTags := make([]map[string]interface{}, 3)
-	tagsCounter := 0
-	for tagsCounter < 3 {
-		tags := make(map[string]interface{})
-		randomNodeId := fastrand.Uint32n(2_000)
-		randomPodId := fastrand.Uint32n(20_000)
-		randomUserId := fastrand.Uint32n(2_000_000)
-		tags["key"] = "node_id"
-		tags["value"] = fmt.Sprintf("node-%d", randomNodeId)
-		tags["type"] = "string"
-		listOfTags[tagsCounter] = tags
-		tagsCounter++
-		tags = make(map[string]interface{})
-		tags["key"] = "pod_id"
-		tags["value"] = fmt.Sprintf("pod-%d", randomPodId)
-		tags["type"] = "string"
-		listOfTags[tagsCounter] = tags
-		tagsCounter++
-		tags = make(map[string]interface{})
-		tags["key"] = "user_id"
-		tags["value"] = fmt.Sprintf("user-%d", randomUserId)
-		tags["type"] = "string"
-		listOfTags[tagsCounter] = tags
-		tagsCounter++
-	}
+	randomNodeId := fastrand.Uint32n(2_000)
+	randomPodId := fastrand.Uint32n(20_000)
+	randomUserId := fastrand.Uint32n(2_000_000)
+	listOfTags[0] = makeTagObject("node_id","string","node-%d",randomNodeId);
+	listOfTags[1] = makeTagObject("pod_id","string","pod-%d",randomPodId);
+	listOfTags[2] = makeTagObject("user_id","string","user-%d",randomUserId);
 	processBody["tags"] = listOfTags
 	return processBody
 }
 
+func makeTagObject(s1, s2, s3 string, randomNum uint32) map[string]interface{} {
+	tag := make(map[string]interface{})
+	tag["key"] = s1
+	tag["type"] = s2
+	if randomNum == math.MaxInt32 {
+		tag["value"] = s3
+	} else{
+		tag["value"] =  fmt.Sprintf(s3, randomNum)
+	}
+	return tag
+}
+
 func generateTagBody(n int) []map[string]interface{} {
 	listOfTags := make([]map[string]interface{}, 4)
-	tagsCounter := 0
-	for tagsCounter < 4 {
-		tags := make(map[string]interface{})
-		randNumrequest := fastrand.Uint32n(2_000_000_0)
-		randNumCluster := fastrand.Uint32n(2_000)
-		randNumEnv := fastrand.Uint32n(2)
-		randNumDc := fastrand.Uint32n(uint32(len(ar_dc)))
-		tags["key"] = "cluster"
-		tags["value"] = fmt.Sprintf("cluster-%d", randNumCluster)
-		tags["type"] = "string"
-		listOfTags[tagsCounter] = tags
-		tagsCounter++
-		tags = make(map[string]interface{})
-		tags["key"] = "env"
-		tags["value"] = envs[randNumEnv]
-		tags["type"] = "string"
-		listOfTags[tagsCounter] = tags
-		tagsCounter++
-		tags = make(map[string]interface{})
-		tags["key"] = "dc"
-		tags["value"] = ar_dc[randNumDc]
-		tags["type"] = "string"
-		listOfTags[tagsCounter] = tags
-		tagsCounter++
-		tags = make(map[string]interface{})
-		tags["key"] = "request_id"
-		tags["value"] = fmt.Sprintf("request-%d", randNumrequest)
-		tags["type"] = "string"
-		listOfTags[tagsCounter] = tags
-		tagsCounter++
-	}
+	randNumrequest := fastrand.Uint32n(2_000_000_0)
+	randNumCluster := fastrand.Uint32n(2_000)
+	randNumEnv := fastrand.Uint32n(2)
+	randNumDc := fastrand.Uint32n(uint32(len(ar_dc)))
+	listOfTags[0] = makeTagObject("cluster","string","cluster-%d",randNumCluster);
+	listOfTags[1] = makeTagObject("env","string",envs[randNumEnv],math.MaxInt32);
+	listOfTags[2] = makeTagObject("dc","string",ar_dc[randNumDc],math.MaxInt32);
+	listOfTags[3] = makeTagObject("request_id","string","request-%d",randNumrequest);
 	return listOfTags
 }
