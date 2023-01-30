@@ -65,8 +65,6 @@ func StartTraceGeneration(filePrefix string, numTraces int, maxSpans int) {
 	}
 	w.Flush()
 	service_writer.Flush()
-	service_file.Close()
-	f.Close()
 }
 
 func generateRootTrace(traceId string) map[string]interface{} {
