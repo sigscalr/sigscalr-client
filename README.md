@@ -62,8 +62,8 @@ Options:
 
 To send ingestion traffic to a server using ES Bulk API:
 ```bash
-$ ./load-test ingest -t 1000 -d http://localhost:8081/elastic -g file -x {filePrefix}_services.json --indexPrefix jaeger-service-YYYY-MM-DD
-$ ./load-test ingest -t 1000 -d http://localhost:8081/elastic -g file -x {filePrefix}_spans.json --indexPrefix jaeger-span-YYYY-MM--DD
+$ ./load-test ingest -t 1000 -d http://localhost:8081/elastic -g file -x {filePrefix}_services.json --indexName jaeger-service-YYYY-MM-DD
+$ ./load-test ingest -t 1000 -d http://localhost:8081/elastic -g file -x {filePrefix}_spans.json --indexName jaeger-span-YYYY-MM--DD
 ```
 
 Options:
@@ -73,7 +73,7 @@ Options:
 -g, --generator string         type of generator to use. Options=[static,dynamic-user,file]. Select file and pass the path to the above two created files using -f/--filePath
 -x, --filePath string          path to json file to output traces and services to
 -n, --numIndices int           number of indices to ingest to (default 1) 
--i, --indexPrefix string       Index prefix to ingest (default "ind"), for tracing it is important to use this prefix in the same format
+-i, --indexName string         Index name to ingest to (default "ind"), for tracing it is important to use this argument in the same format
 ```
 
 ## Utils
