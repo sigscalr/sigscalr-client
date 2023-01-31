@@ -6,7 +6,6 @@ To send ingestion traffic to a server using ES Bulk API:
 ```bash
 $ ./load-test ingest -n 10_000 -d http://localhost:8081/elastic -p 2
 ```
-
 Options:
 ```
   -b, --batchSize int        Batch size (default 100)
@@ -48,6 +47,34 @@ Options:
 -c  continuous             If true, ignores -n and -v and will continuously send queries to the destination and will log results
 ```
 
+## Generating traces
+To generate synthetic traces: 
+```bash
+$ ./load-test traces -f test_traces -t 1000 -s 10
+```
+
+Options:
+```
+-f, --filePrefix string        prefix path for spans and services to be generated 
+-t, --totalEvents int          number of total traces to generate
+-s, --maxSpans int             number of max spans for each trace
+```
+
+To send ingestion traffic to a server using ES Bulk API:
+```bash
+$ ./load-test ingest -t 1000 -d http://localhost:8081/elastic -g file -x {filePrefix}_services.json --indexName jaeger-service-YYYY-MM-DD
+$ ./load-test ingest -t 1000 -d http://localhost:8081/elastic -g file -x {filePrefix}_spans.json --indexName jaeger-span-YYYY-MM--DD
+```
+
+Options:
+```
+-t, --totalEvents int          number of total traces to ingest (default 1000000)
+-d, --dest string              Destination URL. Client will append /_bulk
+-g, --generator string         type of generator to use. Options=[static,dynamic-user,file]. Select file and pass the path to the above two created files using -f/--filePath
+-x, --filePath string          path to json file to output traces and services to
+-n, --numIndices int           number of indices to ingest to (default 1) 
+-i, --indexName string         Index name to ingest to (default "ind"), for tracing it is important to use this argument in the same format
+```
 
 ## Utils
 

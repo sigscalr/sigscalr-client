@@ -99,13 +99,18 @@ func runIngestion(rdr utils.Generator, wg *sync.WaitGroup, url string, totalEven
 	}
 }
 
-func populateActionLines(idxPrefix string, numIndices int) {
+func populateActionLines(idxPrefix string, indexName string, numIndices int) {
 	if numIndices == 0 {
 		log.Fatalf("number of indices cannot be zero!")
 	}
 	actionLines = make([]string, numIndices)
 	for i := 0; i < numIndices; i++ {
-		idx := fmt.Sprintf("%s-%d", idxPrefix, i)
+		var idx string
+		if indexName != "" {
+			idx = indexName
+		} else {
+			idx = fmt.Sprintf("%s-%d", idxPrefix, i)
+		}
 		actionLine := "{\"index\": {\"_index\": \"" + idx + "\", \"_type\": \"_doc\"}}\n"
 		actionLines[i] = actionLine
 	}
@@ -130,7 +135,7 @@ func getReaderFromArgs(gentype, str string, ts bool) (utils.Generator, error) {
 }
 
 func StartIngestion(generatorType, dataFile string, totalEvents int, continuous bool,
-	batchSize int, url string, indexPrefix string, numIndices, processCount int, addTs bool) {
+	batchSize int, url string, indexPrefix string, indexName string, numIndices, processCount int, addTs bool) {
 	log.Println("Starting ingestion at ", url, "...")
 	var wg sync.WaitGroup
 	totalEventsPerProcess := totalEvents / processCount
@@ -138,7 +143,7 @@ func StartIngestion(generatorType, dataFile string, totalEvents int, continuous 
 	ticker := time.NewTicker(time.Minute)
 	done := make(chan bool)
 	totalSent := uint64(0)
-	populateActionLines(indexPrefix, numIndices)
+	populateActionLines(indexPrefix, indexName, numIndices)
 
 	for i := 0; i < processCount; i++ {
 		wg.Add(1)
