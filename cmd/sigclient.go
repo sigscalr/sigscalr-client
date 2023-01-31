@@ -76,7 +76,7 @@ var traceCmd = &cobra.Command{
 func init() {
 	rootCmd.PersistentFlags().StringP("dest", "d", "", "ES Server URL.")
 	rootCmd.PersistentFlags().StringP("indexPrefix", "i", "ind", "index prefix")
-	rootCmd.PersistentFlags().StringP("indexName","a","ind","index name")
+	rootCmd.PersistentFlags().StringP("indexName","a","","index name")
 
 	ingestCmd.PersistentFlags().IntP("processCount", "p", 1, "Number of parallel process to ingest data from.")
 	ingestCmd.PersistentFlags().IntP("totalEvents", "t", 1000000, "Total number of events to send")

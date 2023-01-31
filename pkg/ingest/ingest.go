@@ -105,7 +105,7 @@ func populateActionLines(idxPrefix string, indexName string, numIndices int) {
 	}
 	actionLines = make([]string, numIndices)
 	for i := 0; i < numIndices; i++ {
-		idx := indexName
+		var idx string
 		if indexName != "" {
 			idx = indexName
 		} else {
