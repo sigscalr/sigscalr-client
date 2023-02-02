@@ -3,6 +3,7 @@ package utils
 import (
 	"fmt"
 	"strings"
+	"time"
 
 	"github.com/brianvoe/gofakeit/v6"
 	"github.com/liangyaopei/hyper"
@@ -38,6 +39,7 @@ func (mg *MetricsGenerator) GetRawLog() (map[string]interface{}, error) {
 	retVal := make(map[string]interface{})
 	mName := fmt.Sprintf("test.metric.%d", fastrand.Uint32n(mg.nMetrics))
 	retVal["metric"] = mName
+	retVal["timestamp"] = time.Now().Unix()
 	if fastrand.Uint32n(1_000)%2 == 0 {
 		mg.val = float64(fastrand.Uint32n(1_000))
 	}
