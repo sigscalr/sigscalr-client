@@ -2,9 +2,10 @@
 
 ## Ingest
 
+### ES Bulk
 To send ingestion traffic to a server using ES Bulk API:
 ```bash
-$ ./load-test ingest -n 10_000 -d http://localhost:8081/elastic -p 2
+$ ./load-test ingest esbulk -n 10_000 -d http://localhost:8081/elastic -p 2
 ```
 Options:
 ```
@@ -28,6 +29,22 @@ Different Types of Readers:
 1. Static: Sends the same payload over and over
 2. Dynamic User: Randomly Generates user events. These random events are generated using [gofakeit](github.com/brianvoe/gofakeit/v6).
 3. File: Reads a file line by line. Expects each line is a new json. Will loop over file if necessary
+
+
+### OTSDB
+To send ingestion traffic to a server using OTSDB:
+```bash
+$ ./load-test ingest metrics -d http://localhost:8081 -t 10_000  -m 5 -p 1
+```
+Options:
+```
+  -m, --metrics int   Number of different metric names to send (default 1000)
+
+  -b, --batchSize int        Batch size (default 100)
+  -d, --dest string          Server URL.
+  -p, --processCount int     Number of parallel process to ingest data from. (default 1)
+  -t, --totalEvents int      Total number of events to send (default 1000000)
+```
 
 ## Query
 

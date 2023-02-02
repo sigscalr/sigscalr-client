@@ -103,7 +103,7 @@ var traceCmd = &cobra.Command{
 }
 
 func init() {
-	rootCmd.PersistentFlags().StringP("dest", "d", "", "ES Server URL.")
+	rootCmd.PersistentFlags().StringP("dest", "d", "", "Server URL.")
 	rootCmd.PersistentFlags().StringP("indexPrefix", "i", "ind", "index prefix")
 	rootCmd.PersistentFlags().StringP("indexName", "a", "", "index name")
 
