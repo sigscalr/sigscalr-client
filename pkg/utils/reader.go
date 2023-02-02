@@ -20,6 +20,7 @@ var json = jsoniter.ConfigFastest
 type Generator interface {
 	Init(fName ...string) error
 	GetLogLine() ([]byte, error)
+	GetRawLog() (map[string]interface{}, error)
 }
 
 // file reader loads chunks from the file. Each request will get a sequential entry from the chunk.
@@ -134,6 +135,11 @@ func (r *DynamicUserGenerator) GetLogLine() ([]byte, error) {
 	return json.Marshal(r.baseBody)
 }
 
+func (r *DynamicUserGenerator) GetRawLog() (map[string]interface{}, error) {
+	r.generateRandomBody()
+	return r.baseBody, nil
+}
+
 func (r *StaticGenerator) Init(fName ...string) error {
 	m := make(map[string]interface{})
 	f := gofakeit.NewUnlocked(int64(fastrand.Uint32n(1_000)))
@@ -150,6 +156,15 @@ func (r *StaticGenerator) Init(fName ...string) error {
 
 func (sr *StaticGenerator) GetLogLine() ([]byte, error) {
 	return sr.logLine, nil
+}
+
+func (sr *StaticGenerator) GetRawLog() (map[string]interface{}, error) {
+	final := make(map[string]interface{})
+	err := json.Unmarshal(sr.logLine, &final)
+	if err != nil {
+		return nil, err
+	}
+	return final, nil
 }
 
 var chunkSize int = 10000
@@ -191,6 +206,19 @@ func (fr *FileReader) GetLogLine() ([]byte, error) {
 		go func() { _ = fr.prefetchChunk(false) }()
 	}
 	return retVal, nil
+}
+
+func (fr *FileReader) GetRawLog() (map[string]interface{}, error) {
+	rawLog, err := fr.GetLogLine()
+	if err != nil {
+		return nil, err
+	}
+	final := make(map[string]interface{})
+	err = json.Unmarshal(rawLog, &final)
+	if err != nil {
+		return nil, err
+	}
+	return final, nil
 }
 
 func (fr *FileReader) swapChunks() error {
