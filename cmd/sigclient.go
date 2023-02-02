@@ -3,6 +3,7 @@ package cmd
 import (
 	"verifier/pkg/ingest"
 	"verifier/pkg/query"
+	"verifier/pkg/trace"
 
 	log "github.com/sirupsen/logrus"
 
@@ -32,15 +33,18 @@ var esBulkCmd = &cobra.Command{
 		generatorType, _ := cmd.Flags().GetString("generator")
 		ts, _ := cmd.Flags().GetBool("timestamp")
 		dataFile, _ := cmd.Flags().GetString("filePath")
+		indexName, _ := cmd.Flags().GetString("indexName")
 
 		log.Infof("processCount : %+v\n", processCount)
 		log.Infof("dest : %+v\n", dest)
 		log.Infof("totalEvents : %+v. Continuous: %+v\n", totalEvents, continuous)
 		log.Infof("batchSize : %+v\n", batchSize)
 		log.Infof("indexPrefix : %+v\n", indexPrefix)
+		log.Infof("indexName : %+v\n", indexName)
 		log.Infof("numIndices : %+v\n", numIndices)
 		log.Infof("generatorType : %+v. Add timestamp: %+v\n", generatorType, ts)
-		ingest.StartIngestion(ingest.ESBulk, generatorType, dataFile, totalEvents, continuous, batchSize, dest, indexPrefix, numIndices, processCount, ts, 0)
+
+		ingest.StartIngestion(ingest.ESBulk, generatorType, dataFile, totalEvents, continuous, batchSize, dest, indexPrefix, indexName, numIndices, processCount, ts, 0)
 	},
 }
 
@@ -60,7 +64,7 @@ var metricsIngestCmd = &cobra.Command{
 		log.Infof("dest : %+v\n", dest)
 		log.Infof("totalEvents : %+v. Continuous: %+v\n", totalEvents, continuous)
 		log.Infof("batchSize : %+v. Num metrics: %+v\n", batchSize, nMetrics)
-		ingest.StartIngestion(ingest.OpenTSDB, "", "", totalEvents, continuous, batchSize, dest, "", 0, processCount, false, nMetrics)
+		ingest.StartIngestion(ingest.OpenTSDB, "", "", totalEvents, continuous, batchSize, dest, "", "", 0, processCount, false, nMetrics)
 	},
 }
 
@@ -69,7 +73,7 @@ var queryCmd = &cobra.Command{
 	Short: "send queries to SigScalr",
 	Run: func(cmd *cobra.Command, args []string) {
 		dest, _ := cmd.Flags().GetString("dest")
-		numIterations, _ := cmd.Flags().GetInt("count")
+		numIterations, _ := cmd.Flags().GetInt("numIterations")
 		verbose, _ := cmd.Flags().GetBool("verbose")
 		continuous, _ := cmd.Flags().GetBool("continuous")
 		indexPrefix, _ := cmd.Flags().GetString("indexPrefix")
@@ -83,9 +87,25 @@ var queryCmd = &cobra.Command{
 	},
 }
 
+var traceCmd = &cobra.Command{
+	Use:   "traces",
+	Short: "send traces to Sigscalr",
+	Run: func(cmd *cobra.Command, args []string) {
+		filePrefix, _ := cmd.Flags().GetString("filePrefix")
+		totalTraces, _ := cmd.Flags().GetInt("totalEvents")
+		maxSpans, _ := cmd.Flags().GetInt("maxSpans")
+
+		log.Infof("file : %+v\n", filePrefix)
+		log.Infof("totalTraces : %+v\n", totalTraces)
+		log.Infof("maxSpans : %+v\n", maxSpans)
+		trace.StartTraceGeneration(filePrefix, totalTraces, maxSpans)
+	},
+}
+
 func init() {
 	rootCmd.PersistentFlags().StringP("dest", "d", "", "ES Server URL.")
 	rootCmd.PersistentFlags().StringP("indexPrefix", "i", "ind", "index prefix")
+	rootCmd.PersistentFlags().StringP("indexName", "a", "", "index name")
 
 	ingestCmd.PersistentFlags().IntP("processCount", "p", 1, "Number of parallel process to ingest data from.")
 	ingestCmd.PersistentFlags().IntP("totalEvents", "t", 1000000, "Total number of events to send")
@@ -105,6 +125,11 @@ func init() {
 
 	ingestCmd.AddCommand(esBulkCmd)
 	ingestCmd.AddCommand(metricsIngestCmd)
+	traceCmd.PersistentFlags().StringP("filePrefix", "f", "", "Name of file to output to")
+	traceCmd.PersistentFlags().IntP("totalEvents", "t", 1000000, "Total number of traces to generate")
+	traceCmd.Flags().IntP("maxSpans", "s", 100, "max number of spans in a single trace")
+
 	rootCmd.AddCommand(ingestCmd)
 	rootCmd.AddCommand(queryCmd)
+	rootCmd.AddCommand(traceCmd)
 }

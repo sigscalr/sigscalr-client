@@ -154,13 +154,18 @@ func runIngestion(iType IngestType, rdr utils.Generator, wg *sync.WaitGroup, url
 	}
 }
 
-func populateActionLines(idxPrefix string, numIndices int) {
+func populateActionLines(idxPrefix string, indexName string, numIndices int) {
 	if numIndices == 0 {
 		log.Fatalf("number of indices cannot be zero!")
 	}
 	actionLines = make([]string, numIndices)
 	for i := 0; i < numIndices; i++ {
-		idx := fmt.Sprintf("%s-%d", idxPrefix, i)
+		var idx string
+		if indexName != "" {
+			idx = indexName
+		} else {
+			idx = fmt.Sprintf("%s-%d", idxPrefix, i)
+		}
 		actionLine := "{\"index\": {\"_index\": \"" + idx + "\", \"_type\": \"_doc\"}}\n"
 		actionLines[i] = actionLine
 	}
@@ -192,7 +197,7 @@ func getReaderFromArgs(iType IngestType, nummetrics int, gentype, str string, ts
 }
 
 func StartIngestion(iType IngestType, generatorType, dataFile string, totalEvents int, continuous bool,
-	batchSize int, url string, indexPrefix string, numIndices, processCount int, addTs bool, nMetrics int) {
+	batchSize int, url string, indexPrefix string, indexName string, numIndices, processCount int, addTs bool, nMetrics int) {
 	log.Printf("Starting ingestion at %+v for %+v", url, iType.String())
 	var wg sync.WaitGroup
 	totalEventsPerProcess := totalEvents / processCount
@@ -202,7 +207,7 @@ func StartIngestion(iType IngestType, generatorType, dataFile string, totalEvent
 	totalSent := uint64(0)
 
 	if iType == ESBulk {
-		populateActionLines(indexPrefix, numIndices)
+		populateActionLines(indexPrefix, indexName, numIndices)
 	}
 
 	for i := 0; i < processCount; i++ {
