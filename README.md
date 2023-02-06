@@ -5,7 +5,7 @@
 ### ES Bulk
 To send ingestion traffic to a server using ES Bulk API:
 ```bash
-$ ./load-test ingest esbulk -n 10_000 -d http://localhost:8081/elastic -p 2
+$ go run main.go ingest esbulk -n 10_000 -d http://localhost:8081/elastic -p 2
 ```
 Options:
 ```
@@ -34,7 +34,7 @@ Different Types of Readers:
 ### OTSDB
 To send ingestion traffic to a server using OTSDB:
 ```bash
-$ ./load-test ingest metrics -d http://localhost:8081 -t 10_000  -m 5 -p 1
+$ go run main.go ingest metrics -d http://localhost:8081 -t 10_000  -m 5 -p 1
 ```
 Options:
 ```
@@ -50,7 +50,7 @@ Options:
 
 To send queries and measure responses to a server:
 ```bash
-$ ./load-test query -d http://localhost:8081/elastic -v
+$ go run main.go query -d http://localhost:8081/elastic -v
 ```
 
 
@@ -67,7 +67,7 @@ Options:
 ## Generating traces
 To generate synthetic traces: 
 ```bash
-$ ./load-test traces -f test_traces -t 1000 -s 10
+$ go run main.go traces -f test_traces -t 1000 -s 10
 ```
 
 Options:
@@ -79,8 +79,8 @@ Options:
 
 To send ingestion traffic to a server using ES Bulk API:
 ```bash
-$ ./load-test ingest -t 1000 -d http://localhost:8081/elastic -g file -x {filePrefix}_services.json --indexName jaeger-service-YYYY-MM-DD
-$ ./load-test ingest -t 1000 -d http://localhost:8081/elastic -g file -x {filePrefix}_spans.json --indexName jaeger-span-YYYY-MM--DD
+$ go run main.go ingest -t 1000 -d http://localhost:8081/elastic -g file -x {filePrefix}_services.json --indexName jaeger-service-YYYY-MM-DD
+$ go run main.go ingest -t 1000 -d http://localhost:8081/elastic -g file -x {filePrefix}_spans.json --indexName jaeger-span-YYYY-MM--DD
 ```
 
 Options:
