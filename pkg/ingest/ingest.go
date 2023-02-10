@@ -184,8 +184,7 @@ func getReaderFromArgs(iType IngestType, nummetrics int, gentype, str string, ts
 	switch gentype {
 	case "", "static":
 		log.Infof("Initializing static reader")
-		seed := int64(fastrand.Uint32n(1_000))
-		rdr = utils.InitStaticGenerator(ts, seed)
+		rdr = utils.InitStaticGenerator(ts)
 	case "dynamic-user":
 		seed := int64(fastrand.Uint32n(1_000))
 		rdr = utils.InitDynamicUserGenerator(ts, seed)

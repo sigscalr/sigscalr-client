@@ -13,6 +13,7 @@ import (
 	"github.com/brianvoe/gofakeit/v6"
 	jsoniter "github.com/json-iterator/go"
 	log "github.com/sirupsen/logrus"
+	"github.com/valyala/fastrand"
 )
 
 var json = jsoniter.ConfigFastest
@@ -44,7 +45,6 @@ type FileReader struct {
 type StaticGenerator struct {
 	logLine []byte
 	ts      bool
-	seed    int64
 }
 
 type DynamicUserGenerator struct {
@@ -62,10 +62,9 @@ func InitDynamicUserGenerator(ts bool, seed int64) *DynamicUserGenerator {
 	}
 }
 
-func InitStaticGenerator(ts bool, seed int64) *StaticGenerator {
+func InitStaticGenerator(ts bool) *StaticGenerator {
 	return &StaticGenerator{
-		ts:   ts,
-		seed: seed,
+		ts: ts,
 	}
 }
 
@@ -73,7 +72,7 @@ func InitFileReader() *FileReader {
 	return &FileReader{}
 }
 
-func randomizeBody(f *gofakeit.Faker, m map[string]interface{}, addts bool, seed int64) {
+func randomizeBody(f *gofakeit.Faker, m map[string]interface{}, addts bool) {
 
 	m["batch"] = f.Number(1, 1000)
 	p := f.Person()
@@ -116,7 +115,7 @@ func randomizeBody(f *gofakeit.Faker, m map[string]interface{}, addts bool, seed
 }
 
 func (r *DynamicUserGenerator) generateRandomBody() {
-	randomizeBody(r.faker, r.baseBody, r.ts, r.seed)
+	randomizeBody(r.faker, r.baseBody, r.ts)
 }
 
 func (r *DynamicUserGenerator) Init(fName ...string) error {
@@ -148,9 +147,8 @@ func (r *DynamicUserGenerator) GetRawLog() (map[string]interface{}, error) {
 
 func (r *StaticGenerator) Init(fName ...string) error {
 	m := make(map[string]interface{})
-	gofakeit.Seed(r.seed)
-	f := gofakeit.NewUnlocked(r.seed)
-	randomizeBody(f, m, r.ts, r.seed)
+	f := gofakeit.NewUnlocked(int64(fastrand.Uint32n(1_000)))
+	randomizeBody(f, m, r.ts)
 	body, err := json.Marshal(m)
 	if err != nil {
 		return err
