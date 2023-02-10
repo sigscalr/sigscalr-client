@@ -4,6 +4,7 @@ import (
 	"bufio"
 	"errors"
 	"fmt"
+	"math/rand"
 	"os"
 	"sync"
 	"time"
@@ -12,7 +13,6 @@ import (
 	"github.com/brianvoe/gofakeit/v6"
 	jsoniter "github.com/json-iterator/go"
 	log "github.com/sirupsen/logrus"
-	"github.com/valyala/fastrand"
 )
 
 var json = jsoniter.ConfigFastest
@@ -44,6 +44,7 @@ type FileReader struct {
 type StaticGenerator struct {
 	logLine []byte
 	ts      bool
+	seed    int64
 }
 
 type DynamicUserGenerator struct {
@@ -51,17 +52,20 @@ type DynamicUserGenerator struct {
 	tNowEpoch uint64
 	ts        bool
 	faker     *gofakeit.Faker
+	seed      int64
 }
 
-func InitDynamicUserGenerator(ts bool) *DynamicUserGenerator {
+func InitDynamicUserGenerator(ts bool, seed int64) *DynamicUserGenerator {
 	return &DynamicUserGenerator{
-		ts: ts,
+		ts:   ts,
+		seed: seed,
 	}
 }
 
-func InitStaticGenerator(ts bool) *StaticGenerator {
+func InitStaticGenerator(ts bool, seed int64) *StaticGenerator {
 	return &StaticGenerator{
-		ts: ts,
+		ts:   ts,
+		seed: seed,
 	}
 }
 
@@ -69,10 +73,9 @@ func InitFileReader() *FileReader {
 	return &FileReader{}
 }
 
-func randomizeBody(f *gofakeit.Faker, m map[string]interface{}, addts bool) {
-	randNum := fastrand.Uint32n(1_000)
-	// sentenceLen := int(fastrand.Uint32n(25))
-	m["batch"] = fmt.Sprintf("batch-%d", randNum)
+func randomizeBody(f *gofakeit.Faker, m map[string]interface{}, addts bool, seed int64) {
+
+	m["batch"] = f.Number(1, 1000)
 	p := f.Person()
 	m["first_name"] = p.FirstName
 	m["last_name"] = p.LastName
@@ -103,9 +106,9 @@ func randomizeBody(f *gofakeit.Faker, m map[string]interface{}, addts bool) {
 	m["ident"] = f.UUID()
 	m["user_agent"] = f.UserAgent()
 	m["url"] = f.URL()
-	m["group"] = fmt.Sprintf("group %d", fastrand.Uint32n(2))
+	m["group"] = fmt.Sprintf("group %d", f.Number(0, 2))
 	m["question"] = f.Question()
-	m["latency"] = fastrand.Uint32n(10_000_000)
+	m["latency"] = f.Uint32()
 
 	if addts {
 		m["timestamp"] = uint64(time.Now().UnixMilli())
@@ -113,11 +116,14 @@ func randomizeBody(f *gofakeit.Faker, m map[string]interface{}, addts bool) {
 }
 
 func (r *DynamicUserGenerator) generateRandomBody() {
-	randomizeBody(r.faker, r.baseBody, r.ts)
+	randomizeBody(r.faker, r.baseBody, r.ts, r.seed)
 }
 
 func (r *DynamicUserGenerator) Init(fName ...string) error {
-	r.faker = gofakeit.NewUnlocked(int64(fastrand.Uint32n(1_000)))
+	log.Infof("Seed is %+v", r.seed)
+	gofakeit.Seed(r.seed)
+	r.faker = gofakeit.NewUnlocked(r.seed)
+	rand.Seed(r.seed)
 	r.baseBody = make(map[string]interface{})
 	r.generateRandomBody()
 	body, err := json.Marshal(r.baseBody)
@@ -142,8 +148,9 @@ func (r *DynamicUserGenerator) GetRawLog() (map[string]interface{}, error) {
 
 func (r *StaticGenerator) Init(fName ...string) error {
 	m := make(map[string]interface{})
-	f := gofakeit.NewUnlocked(int64(fastrand.Uint32n(1_000)))
-	randomizeBody(f, m, r.ts)
+	gofakeit.Seed(r.seed)
+	f := gofakeit.NewUnlocked(r.seed)
+	randomizeBody(f, m, r.ts, r.seed)
 	body, err := json.Marshal(m)
 	if err != nil {
 		return err

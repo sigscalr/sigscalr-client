@@ -14,6 +14,7 @@ import (
 	"github.com/dustin/go-humanize"
 	log "github.com/sirupsen/logrus"
 	"github.com/valyala/bytebufferpool"
+	"github.com/valyala/fastrand"
 )
 
 type IngestType int
@@ -183,12 +184,18 @@ func getReaderFromArgs(iType IngestType, nummetrics int, gentype, str string, ts
 	switch gentype {
 	case "", "static":
 		log.Infof("Initializing static reader")
-		rdr = utils.InitStaticGenerator(ts)
+		seed := int64(fastrand.Uint32n(1_000))
+		rdr = utils.InitStaticGenerator(ts, seed)
 	case "dynamic-user":
-		rdr = utils.InitDynamicUserGenerator(ts)
+		seed := int64(fastrand.Uint32n(1_000))
+		rdr = utils.InitDynamicUserGenerator(ts, seed)
 	case "file":
 		log.Infof("Initializing file reader from %s", str)
 		rdr = utils.InitFileReader()
+	case "benchmark":
+		log.Infof("Initializing benchmark reader")
+		seed := int64(1001)
+		rdr = utils.InitDynamicUserGenerator(ts, seed)
 	default:
 		return nil, fmt.Errorf("unsupported reader type %s. Options=[static,dynamic,file]", gentype)
 	}
