@@ -11,7 +11,7 @@ Options:
 ```
   -b, --batchSize int        Batch size (default 100)
   -d, --dest string          Destination URL. Client will append /_bulk
-  -g, --generator string     type of generator to use. Options=[static,dynamic-user,file]. If file is selected, -x/--filePath must be specified (default "static")
+  -g, --generator string     type of generator to use. Options=[static,dynamic-user,file,benchmark]. If file is selected, -x/--filePath must be specified (default "static")
   
   -x, --filePath string      path to json file containing loglines to send to server
   -h, --help                 help for ingest
@@ -87,7 +87,7 @@ Options:
 ```
 -t, --totalEvents int          number of total traces to ingest (default 1000000)
 -d, --dest string              Destination URL. Client will append /_bulk
--g, --generator string         type of generator to use. Options=[static,dynamic-user,file]. Select file and pass the path to the above two created files using -f/--filePath
+-g, --generator string         type of generator to use. Options=[static,dynamic-user,file,benchmark]. Select file and pass the path to the above two created files using -f/--filePath
 -x, --filePath string          path to json file to output traces and services to
 -n, --numIndices int           number of indices to ingest to (default 1) 
 -i, --indexName string         Index name to ingest to (default "ind"), for tracing it is important to use this argument in the same format

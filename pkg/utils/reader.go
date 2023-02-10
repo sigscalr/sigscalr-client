@@ -4,6 +4,7 @@ import (
 	"bufio"
 	"errors"
 	"fmt"
+	"math/rand"
 	"os"
 	"sync"
 	"time"
@@ -51,11 +52,13 @@ type DynamicUserGenerator struct {
 	tNowEpoch uint64
 	ts        bool
 	faker     *gofakeit.Faker
+	seed      int64
 }
 
-func InitDynamicUserGenerator(ts bool) *DynamicUserGenerator {
+func InitDynamicUserGenerator(ts bool, seed int64) *DynamicUserGenerator {
 	return &DynamicUserGenerator{
-		ts: ts,
+		ts:   ts,
+		seed: seed,
 	}
 }
 
@@ -70,9 +73,8 @@ func InitFileReader() *FileReader {
 }
 
 func randomizeBody(f *gofakeit.Faker, m map[string]interface{}, addts bool) {
-	randNum := fastrand.Uint32n(1_000)
-	// sentenceLen := int(fastrand.Uint32n(25))
-	m["batch"] = fmt.Sprintf("batch-%d", randNum)
+
+	m["batch"] = fmt.Sprintf("batch-%d", f.Number(1, 1000))
 	p := f.Person()
 	m["first_name"] = p.FirstName
 	m["last_name"] = p.LastName
@@ -103,9 +105,9 @@ func randomizeBody(f *gofakeit.Faker, m map[string]interface{}, addts bool) {
 	m["ident"] = f.UUID()
 	m["user_agent"] = f.UserAgent()
 	m["url"] = f.URL()
-	m["group"] = fmt.Sprintf("group %d", fastrand.Uint32n(2))
+	m["group"] = fmt.Sprintf("group %d", f.Number(0, 2))
 	m["question"] = f.Question()
-	m["latency"] = fastrand.Uint32n(10_000_000)
+	m["latency"] = f.Number(0, 10_000_000)
 
 	if addts {
 		m["timestamp"] = uint64(time.Now().UnixMilli())
@@ -117,7 +119,9 @@ func (r *DynamicUserGenerator) generateRandomBody() {
 }
 
 func (r *DynamicUserGenerator) Init(fName ...string) error {
-	r.faker = gofakeit.NewUnlocked(int64(fastrand.Uint32n(1_000)))
+	gofakeit.Seed(r.seed)
+	r.faker = gofakeit.NewUnlocked(r.seed)
+	rand.Seed(r.seed)
 	r.baseBody = make(map[string]interface{})
 	r.generateRandomBody()
 	body, err := json.Marshal(r.baseBody)
