@@ -107,7 +107,7 @@ func randomizeBody(f *gofakeit.Faker, m map[string]interface{}, addts bool) {
 	m["url"] = f.URL()
 	m["group"] = fmt.Sprintf("group %d", f.Number(0, 2))
 	m["question"] = f.Question()
-	m["latency"] = f.Uint32()
+	m["latency"] = f.Number(0, 10_000_000)
 
 	if addts {
 		m["timestamp"] = uint64(time.Now().UnixMilli())
@@ -119,7 +119,6 @@ func (r *DynamicUserGenerator) generateRandomBody() {
 }
 
 func (r *DynamicUserGenerator) Init(fName ...string) error {
-	log.Infof("Seed is %+v", r.seed)
 	gofakeit.Seed(r.seed)
 	r.faker = gofakeit.NewUnlocked(r.seed)
 	rand.Seed(r.seed)
