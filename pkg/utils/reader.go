@@ -74,7 +74,7 @@ func InitFileReader() *FileReader {
 
 func randomizeBody(f *gofakeit.Faker, m map[string]interface{}, addts bool) {
 
-	m["batch"] = f.Number(1, 1000)
+	m["batch"] = fmt.Sprintf("batch-%d", f.Number(1, 1000))
 	p := f.Person()
 	m["first_name"] = p.FirstName
 	m["last_name"] = p.LastName
