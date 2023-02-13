@@ -339,7 +339,7 @@ func logQuerySummary(numIterations int, res map[queryTypes][]float64) {
 	}
 }
 
-func StartQuery(dest string, numIterations int, prefix string, continuous, verbose bool) {
+func StartQuery(dest string, numIterations int, prefix string, continuous, verbose bool, queryType string) {
 	client := http.DefaultClient
 	if numIterations == 0 && !continuous {
 		log.Fatalf("Iterations must be greater than 0")
@@ -348,11 +348,29 @@ func StartQuery(dest string, numIterations int, prefix string, continuous, verbo
 	requestStr := fmt.Sprintf("%s/%s*/_search", dest, prefix)
 
 	log.Infof("Using destination URL %+s", requestStr)
+
+	var continuousFlag int
 	if continuous {
+		continuousFlag = 1
+	}
+
+	switch queryType {
+	case "playground":
+		runPlaygroundQueries(client, requestStr, numIterations, continuousFlag)
+		return
+	case "":
+	default:
+		log.Fatalf("unsupported query")
+	}
+
+	var results map[queryTypes][]float64
+
+	if !continuous {
+		results = initResultMap(numIterations)
+	} else {
 		runContinuousQueries(client, requestStr)
 	}
 
-	results := initResultMap(numIterations)
 	for i := 0; i < numIterations; i++ {
 		rawMatchAll := getMatchAllQuery()
 		time := sendSingleRequest(matchAll, client, rawMatchAll, requestStr, verbose)
@@ -379,7 +397,9 @@ func StartQuery(dest string, numIterations int, prefix string, continuous, verbo
 		results[freeText][i] = time
 	}
 
-	logQuerySummary(numIterations, results)
+	if !continuous {
+		logQuerySummary(numIterations, results)
+	}
 }
 
 // this will never save time statistics per query and will always log results
@@ -399,5 +419,52 @@ func runContinuousQueries(client *http.Client, requestStr string) {
 
 		fQuery := getFreeTextSearch()
 		_ = sendSingleRequest(freeText, client, fQuery, requestStr, true)
+	}
+}
+
+// this will run queries specific to the playground setup we have.
+func runPlaygroundQueries(client *http.Client, requestStr string, numIterations int, continuousFlag int) {
+
+	var results map[queryTypes][]float64
+
+	if continuousFlag == 0 {
+		results = initResultMap(numIterations)
+	}
+
+	for i := 0; i < numIterations; i++ {
+		times := make([]float64, 5)
+
+		rawMatchAll := getMatchAllQuery()
+		times = append(times, sendSingleRequest(matchAll, client, rawMatchAll, requestStr, false))
+		// if continuousFlag == 0 {
+		// results[matchAll][i] =
+		//}
+
+		rawMultiple := getMatchMultipleQuery()
+		times = append(times, sendSingleRequest(matchMultiple, client, rawMultiple, requestStr, true))
+		// if continuousFlag == 0 {
+		// results[match][i] =
+		//}
+
+		rawRange := getRangeQuery()
+		times = append(times, sendSingleRequest(matchRange, client, rawRange, requestStr, true))
+
+		sQuery := getSimpleFilter()
+		times = append(times, sendSingleRequest(keyValueQuery, client, sQuery, requestStr, true))
+
+		fQuery := getFreeTextSearch()
+		times = append(times, sendSingleRequest(freeText, client, fQuery, requestStr, true))
+
+		if continuousFlag == 0 {
+			results[matchAll][i] = times[0]
+			results[matchMultiple][i] = times[1]
+			results[matchRange][i] = times[2]
+			results[keyValueQuery][i] = times[3]
+			results[freeText][i] = times[4]
+		}
+		i = i - continuousFlag
+	}
+	if continuousFlag == 0 {
+		logQuerySummary(numIterations, results)
 	}
 }

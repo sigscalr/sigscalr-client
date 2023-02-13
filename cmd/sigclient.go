@@ -77,13 +77,14 @@ var queryCmd = &cobra.Command{
 		verbose, _ := cmd.Flags().GetBool("verbose")
 		continuous, _ := cmd.Flags().GetBool("continuous")
 		indexPrefix, _ := cmd.Flags().GetString("indexPrefix")
+		queryType, _ := cmd.Flags().GetString("queryType")
 
 		log.Infof("dest : %+v\n", dest)
 		log.Infof("numIterations : %+v\n", numIterations)
 		log.Infof("indexPrefix : %+v\n", indexPrefix)
 		log.Infof("verbose : %+v\n", verbose)
 		log.Infof("continuous : %+v\n", continuous)
-		query.StartQuery(dest, numIterations, indexPrefix, continuous, verbose)
+		query.StartQuery(dest, numIterations, indexPrefix, continuous, verbose, queryType)
 	},
 }
 
@@ -122,6 +123,7 @@ func init() {
 	queryCmd.PersistentFlags().IntP("numIterations", "n", 10, "number of times to run entire query suite")
 	queryCmd.Flags().BoolP("verbose", "v", false, "Verbose querying will output raw docs returned by queries")
 	queryCmd.Flags().BoolP("continuous", "c", false, "Continuous querying will ignore -c and -v and will continuously send queries to the destination")
+	queryCmd.Flags().StringP("queryType", "q", "", "will run queries specific to the playground setup we have.")
 
 	ingestCmd.AddCommand(esBulkCmd)
 	ingestCmd.AddCommand(metricsIngestCmd)
