@@ -2,12 +2,18 @@ package query
 
 import (
 	"bytes"
+	"encoding/csv"
 	"encoding/json"
 	"fmt"
+	"io"
 	"io/ioutil"
 	"net/http"
+	"net/url"
+	"os"
+	"strconv"
 	"time"
 
+	"github.com/fasthttp/websocket"
 	"github.com/montanaflynn/stats"
 
 	log "github.com/sirupsen/logrus"
@@ -399,5 +405,89 @@ func runContinuousQueries(client *http.Client, requestStr string) {
 
 		fQuery := getFreeTextSearch()
 		_ = sendSingleRequest(freeText, client, fQuery, requestStr, true)
+	}
+}
+
+// Run queries from a csv file
+
+func RunQueryFromFile(dest string, numIterations int, prefix string, continuous, verbose bool, filepath string) {
+	// open file
+	f, err := os.Open("queries.csv")
+	if err != nil {
+		log.Infof("RunQueryFromFile: Error in opening file: %v, err: %v", filepath, err)
+	}
+
+	defer f.Close()
+
+	// read csv values using csv.Reader
+	csvReader := csv.NewReader(f)
+	for {
+		rec, err := csvReader.Read()
+		if err == io.EOF {
+			break
+		}
+		if err != nil {
+			log.Infof("RunQueryFromFile: Error in reading file: %v, err: %v", filepath, err)
+		}
+		// do something with read line
+		fmt.Printf("%+v\n", rec)
+
+		queryString, _ := url.Parse(rec[0])
+		fmt.Println(queryString.RawQuery)
+		queryParams, _ := url.ParseQuery(queryString.RawQuery)
+
+		data := map[string]interface{}{
+			"state":      "query",
+			"searchText": queryParams["searchText"][0],
+			"startEpoch": queryParams["startEpoch"][0],
+			"endEpoch":   queryParams["endEpoch"][0],
+			"indexName":  queryParams["indexName"][0],
+		}
+
+		// create websocket connection
+		conn, _, err := websocket.DefaultDialer.Dial("ws://localhost/api/search/ws", nil)
+		if err != nil {
+			log.Fatal("error connecting to WebSocket server: ", err)
+		}
+		defer conn.Close()
+
+		err = conn.WriteJSON(data)
+		if err != nil {
+			log.Infof("Received err message from server: %+v\n", err)
+			break
+		}
+
+		readEvent := make(map[string]interface{})
+		for {
+			err = conn.ReadJSON(&readEvent)
+			if err != nil {
+				log.Infof("Received error from server: %+v\n", err)
+				break
+			}
+			switch readEvent["state"] {
+			case "RUNNING":
+
+			case "QUERY_UPDATE":
+
+			case "COMPLETE":
+				for k, v := range readEvent {
+					if k == "totalMatched" {
+						for k, v := range v.(map[string]interface{}) {
+							if k == "value" {
+								actualHits := strconv.FormatInt(int64(v.(float64)), 10)
+								log.Infof("Actual Hits: %v", actualHits)
+								log.Infof("Expected Hits: %v", rec[1])
+								if actualHits != rec[1] {
+									log.Fatalf("Actual Hits: %v does not match Expected hits: %v for query:%v", actualHits, rec[1], rec[0])
+								} else {
+									log.Infof("Query %v was succesful", rec[0])
+								}
+
+							}
+						}
+					}
+				}
+			}
+		}
 	}
 }

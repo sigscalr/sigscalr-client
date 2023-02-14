@@ -77,13 +77,19 @@ var queryCmd = &cobra.Command{
 		verbose, _ := cmd.Flags().GetBool("verbose")
 		continuous, _ := cmd.Flags().GetBool("continuous")
 		indexPrefix, _ := cmd.Flags().GetString("indexPrefix")
+		filepath, _ := cmd.Flags().GetString("filePath")
 
 		log.Infof("dest : %+v\n", dest)
 		log.Infof("numIterations : %+v\n", numIterations)
 		log.Infof("indexPrefix : %+v\n", indexPrefix)
 		log.Infof("verbose : %+v\n", verbose)
 		log.Infof("continuous : %+v\n", continuous)
-		query.StartQuery(dest, numIterations, indexPrefix, continuous, verbose)
+		log.Infof("filePath : %+v\n", filepath)
+		if filepath != "" {
+			query.RunQueryFromFile(dest, numIterations, indexPrefix, continuous, verbose, filepath)
+		} else {
+			query.StartQuery(dest, numIterations, indexPrefix, continuous, verbose)
+		}
 	},
 }
 
@@ -122,6 +128,7 @@ func init() {
 	queryCmd.PersistentFlags().IntP("numIterations", "n", 10, "number of times to run entire query suite")
 	queryCmd.Flags().BoolP("verbose", "v", false, "Verbose querying will output raw docs returned by queries")
 	queryCmd.Flags().BoolP("continuous", "c", false, "Continuous querying will ignore -c and -v and will continuously send queries to the destination")
+	queryCmd.PersistentFlags().StringP("filePath", "f", "", "filepath to csv file to use to run queries from")
 
 	ingestCmd.AddCommand(esBulkCmd)
 	ingestCmd.AddCommand(metricsIngestCmd)
