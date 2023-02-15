@@ -414,7 +414,7 @@ func RunQueryFromFile(dest string, numIterations int, prefix string, continuous,
 	// open file
 	f, err := os.Open(filepath)
 	if err != nil {
-		log.Infof("RunQueryFromFile: Error in opening file: %v, err: %v", filepath, err)
+		log.Errorf("RunQueryFromFile: Error in opening file: %v, err: %v", filepath, err)
 		return
 	}
 
@@ -428,7 +428,7 @@ func RunQueryFromFile(dest string, numIterations int, prefix string, continuous,
 			break
 		}
 		if err != nil {
-			log.Infof("RunQueryFromFile: Error in reading file: %v, err: %v", filepath, err)
+			log.Errorf("RunQueryFromFile: Error in reading file: %v, err: %v", filepath, err)
 			return
 		}
 
@@ -453,7 +453,7 @@ func RunQueryFromFile(dest string, numIterations int, prefix string, continuous,
 
 		err = conn.WriteJSON(data)
 		if err != nil {
-			log.Infof("Received err message from server: %+v\n", err)
+			log.Errorf("Received err message from server: %+v\n", err)
 			break
 		}
 
