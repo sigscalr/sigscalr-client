@@ -414,7 +414,7 @@ func RunQueryFromFile(dest string, numIterations int, prefix string, continuous,
 	// open file
 	f, err := os.Open(filepath)
 	if err != nil {
-		log.Infof("RunQueryFromFile: Error in opening file: %v, err: %v", filepath, err)
+		log.Fatalf("RunQueryFromFile: Error in opening file: %v, err: %v", filepath, err)
 		return
 	}
 
@@ -428,7 +428,7 @@ func RunQueryFromFile(dest string, numIterations int, prefix string, continuous,
 			break
 		}
 		if err != nil {
-			log.Infof("RunQueryFromFile: Error in reading file: %v, err: %v", filepath, err)
+			log.Fatalf("RunQueryFromFile: Error in reading file: %v, err: %v", filepath, err)
 			return
 		}
 
@@ -446,14 +446,14 @@ func RunQueryFromFile(dest string, numIterations int, prefix string, continuous,
 		// create websocket connection
 		conn, _, err := websocket.DefaultDialer.Dial("ws://localhost/api/search/ws", nil)
 		if err != nil {
-			log.Fatal("RunQueryFromFile: Error connecting to WebSocket server: ", err)
+			log.Fatalf("RunQueryFromFile: Error connecting to WebSocket server: %v", err)
 			return
 		}
 		defer conn.Close()
 
 		err = conn.WriteJSON(data)
 		if err != nil {
-			log.Infof("Received err message from server: %+v\n", err)
+			log.Fatalf("Received err message from server: %+v\n", err)
 			break
 		}
 
