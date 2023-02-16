@@ -110,6 +110,9 @@ func generateOpenTSDBBody(recs int, rdr utils.Generator) ([]byte, error) {
 		if err != nil {
 			return nil, err
 		}
+		if _, ok := currPayload["timestamp"].(int64); ok {
+			currPayload["timestamp"] = time.Now().Unix() + int64(i)
+		}
 		finalPayLoad[i] = currPayload
 	}
 	retVal, err := json.Marshal(finalPayLoad)
