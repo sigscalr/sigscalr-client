@@ -175,7 +175,7 @@ func populateActionLines(idxPrefix string, indexName string, numIndices int) {
 func getReaderFromArgs(iType IngestType, nummetrics int, gentype, str string, ts bool) (utils.Generator, error) {
 
 	if iType == OpenTSDB {
-		rdr := utils.InitMetricsGenerator(nummetrics, uint32(time.Now().Unix()))
+		rdr := utils.InitMetricsGenerator(nummetrics, uint64(time.Now().Unix()))
 		err := rdr.Init(str)
 		return rdr, err
 	}
