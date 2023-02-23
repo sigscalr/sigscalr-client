@@ -68,9 +68,9 @@ var metricsIngestCmd = &cobra.Command{
 	},
 }
 
-var queryCmd = &cobra.Command{
-	Use:   "query",
-	Short: "send queries to SigScalr",
+var esQueryCmd = &cobra.Command{
+	Use:   "esbulk",
+	Short: "send esbulk queries to SigScalr",
 	Run: func(cmd *cobra.Command, args []string) {
 		dest, _ := cmd.Flags().GetString("dest")
 		numIterations, _ := cmd.Flags().GetInt("numIterations")
@@ -84,6 +84,31 @@ var queryCmd = &cobra.Command{
 		log.Infof("verbose : %+v\n", verbose)
 		log.Infof("continuous : %+v\n", continuous)
 		query.StartQuery(dest, numIterations, indexPrefix, continuous, verbose)
+	},
+}
+
+var metricsQueryCmd = &cobra.Command{
+	Use:   "otsdb",
+	Short: "send otsdb queries to SigScalr",
+	Run: func(cmd *cobra.Command, args []string) {
+		dest, _ := cmd.Flags().GetString("dest")
+		numIterations, _ := cmd.Flags().GetInt("numIterations")
+		verbose, _ := cmd.Flags().GetBool("verbose")
+		continuous, _ := cmd.Flags().GetBool("continuous")
+
+		log.Infof("dest : %+v\n", dest)
+		log.Infof("numIterations : %+v\n", numIterations)
+		log.Infof("verbose : %+v\n", verbose)
+		log.Infof("continuous : %+v\n", continuous)
+		query.StartMetricsQuery(dest, numIterations, continuous, verbose)
+	},
+}
+
+var queryCmd = &cobra.Command{
+	Use:   "query",
+	Short: "send queries to SigScalr",
+	Run: func(cmd *cobra.Command, args []string) {
+		log.Fatal("Query command should be used with esbulk / metrics.")
 	},
 }
 
@@ -109,7 +134,7 @@ func init() {
 
 	ingestCmd.PersistentFlags().IntP("processCount", "p", 1, "Number of parallel process to ingest data from.")
 	ingestCmd.PersistentFlags().IntP("totalEvents", "t", 1000000, "Total number of events to send")
-	ingestCmd.Flags().BoolP("continuous", "c", false, "Continous ingestion will ingore -t and will constantly send events as fast as possible")
+	ingestCmd.PersistentFlags().BoolP("continuous", "c", false, "Continous ingestion will ingore -t and will constantly send events as fast as possible")
 	ingestCmd.PersistentFlags().IntP("batchSize", "b", 100, "Batch size")
 
 	esBulkCmd.Flags().BoolP("timestamp", "s", false, "Add timestamp in payload")
@@ -120,8 +145,11 @@ func init() {
 	metricsIngestCmd.PersistentFlags().IntP("metrics", "m", 1_000, "Number of different metric names to send")
 
 	queryCmd.PersistentFlags().IntP("numIterations", "n", 10, "number of times to run entire query suite")
-	queryCmd.Flags().BoolP("verbose", "v", false, "Verbose querying will output raw docs returned by queries")
-	queryCmd.Flags().BoolP("continuous", "c", false, "Continuous querying will ignore -c and -v and will continuously send queries to the destination")
+	queryCmd.PersistentFlags().BoolP("verbose", "v", false, "Verbose querying will output raw docs returned by queries")
+	queryCmd.PersistentFlags().BoolP("continuous", "c", false, "Continuous querying will ignore -c and -v and will continuously send queries to the destination")
+
+	queryCmd.AddCommand(esQueryCmd)
+	queryCmd.AddCommand(metricsQueryCmd)
 
 	ingestCmd.AddCommand(esBulkCmd)
 	ingestCmd.AddCommand(metricsIngestCmd)

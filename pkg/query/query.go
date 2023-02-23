@@ -13,10 +13,10 @@ import (
 	log "github.com/sirupsen/logrus"
 )
 
-type queryTypes int
+type logsQueryTypes int
 
 const (
-	matchAll queryTypes = iota
+	matchAll logsQueryTypes = iota
 	matchMultiple
 	matchRange
 	needleInHaystack
@@ -24,7 +24,7 @@ const (
 	freeText
 )
 
-func (q queryTypes) String() string {
+func (q logsQueryTypes) String() string {
 	switch q {
 	case matchAll:
 		return "match all"
@@ -43,7 +43,7 @@ func (q queryTypes) String() string {
 	}
 }
 
-func validateAndGetElapsedTime(qType queryTypes, esOutput map[string]interface{}, verbose bool) float64 {
+func validateAndGetElapsedTime(qType logsQueryTypes, esOutput map[string]interface{}, verbose bool) float64 {
 
 	etime, ok := esOutput["took"]
 	if !ok {
@@ -293,7 +293,7 @@ func getFreeTextSearch() []byte {
 	return raw
 }
 
-func sendSingleRequest(qType queryTypes, client *http.Client, body []byte, url string, verbose bool) float64 {
+func sendSingleRequest(qType logsQueryTypes, client *http.Client, body []byte, url string, verbose bool) float64 {
 	req, err := http.NewRequest("POST", url, bytes.NewReader(body))
 	req.Header.Set("Content-Type", "application/json")
 
@@ -317,8 +317,8 @@ func sendSingleRequest(qType queryTypes, client *http.Client, body []byte, url s
 	return validateAndGetElapsedTime(qType, m, verbose)
 }
 
-func initResultMap(numIterations int) map[queryTypes][]float64 {
-	results := make(map[queryTypes][]float64)
+func initResultMap(numIterations int) map[logsQueryTypes][]float64 {
+	results := make(map[logsQueryTypes][]float64)
 	results[matchAll] = make([]float64, numIterations)
 	results[matchMultiple] = make([]float64, numIterations)
 	results[matchRange] = make([]float64, numIterations)
@@ -328,7 +328,7 @@ func initResultMap(numIterations int) map[queryTypes][]float64 {
 	return results
 }
 
-func logQuerySummary(numIterations int, res map[queryTypes][]float64) {
+func logQuerySummary(numIterations int, res map[logsQueryTypes][]float64) {
 	log.Infof("-----Query Summary. Completed %d iterations----", numIterations)
 	for qType, qRes := range res {
 		p95, _ := stats.Percentile(qRes, 95)
