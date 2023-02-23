@@ -73,7 +73,7 @@ func sendSingleOTSDBRequest(client *http.Client, mqType metricsQueryTypes, url s
 		log.Fatalf("sendRequest: response unmarshal ERROR: %v", err)
 	}
 	log.Infof("returned response: %v in %+v. Num series=%+v", mqType, time.Since(stime), len(m))
-	return 0
+	return float64(time.Since(stime).Milliseconds())
 }
 
 // returns a map of qtype to list of result query times and a map of qType to the raw url to send requests to
