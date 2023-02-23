@@ -8,9 +8,9 @@ import (
 )
 
 var rootCmd = &cobra.Command{
-	Use:   "load",
-	Short: "load testing tool",
-	Long:  `load testing tool`,
+	Use:   "sigscalr-client",
+	Short: "sigscalr client",
+	Long:  `Client to send data to sigscalr and other related storages`,
 }
 
 func Execute() {

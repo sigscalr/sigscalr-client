@@ -48,7 +48,24 @@ Options:
 
 ## Query
 
-To send queries and measure responses to a server:
+### OTSDB
+To send queries using OTSDB and measure responses to a server:
+```bash
+$ go run main.go otsdb -d http://localhost:8081/otsdb -v
+```
+
+
+Options:
+```
+-d, --dest string          Destination URL. Client will append /api/query
+-n, --numIterations int    Number of iterations to send query suite (default 10)
+
+-v  verbose                Output hits and elapsed time for each query
+-c  continuous             If true, ignores -n and -v and will continuously send queries to the destination and will log results
+```
+
+### ESDSL
+To send queries using ESDSL and measure responses to a server:
 ```bash
 $ go run main.go query -d http://localhost:8081/elastic -v
 ```
