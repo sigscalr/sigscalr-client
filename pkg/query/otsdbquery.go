@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"io/ioutil"
+	"math/rand"
 	"net/http"
 	"net/url"
 	"time"
@@ -19,6 +20,8 @@ const (
 	wildcardKey
 )
 
+var aggFns = [...]string{"avg", "min", "max", "sum"}
+
 func (m metricsQueryTypes) String() string {
 	switch m {
 	case simpleKeyValueQuery:
@@ -33,7 +36,8 @@ func (m metricsQueryTypes) String() string {
 func getSimpleMetricsQuery(url *url.URL) string {
 	values := url.Query()
 	values.Set("start", "1d-ago")
-	values.Set("m", "sum:3h-sum:test.metric.0{color=\"yellow\"}")
+	aggFn := aggFns[rand.Intn(len(aggFns))]
+	values.Set("m", fmt.Sprintf("%s:3h-%s:test.metric.0{color=\"yellow\"}", aggFn, aggFn))
 	url.RawQuery = values.Encode()
 	str := url.String()
 	log.Errorf("final url is %+v", str)
@@ -43,7 +47,8 @@ func getSimpleMetricsQuery(url *url.URL) string {
 func getWildcardMetricsQuery(url *url.URL) string {
 	values := url.Query()
 	values.Set("start", "1d-ago")
-	values.Set("m", "sum:3h-sum:test.metric.0{color=*}")
+	aggFn := aggFns[rand.Intn(len(aggFns))]
+	values.Set("m", fmt.Sprintf("%s:3h-%s:test.metric.0{color=*}", aggFn, aggFn))
 	url.RawQuery = values.Encode()
 	str := url.String()
 	log.Errorf("final url is %+v", str)
@@ -100,6 +105,7 @@ func initMetricsResultMap(numIterations int, reqStr string) (map[metricsQueryTyp
 }
 
 func StartMetricsQuery(dest string, numIterations int, continuous, verbose bool) {
+	rand.Seed(time.Now().UnixNano())
 	client := http.DefaultClient
 	if numIterations == 0 && !continuous {
 		log.Fatalf("Iterations must be greater than 0")
