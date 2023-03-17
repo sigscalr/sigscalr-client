@@ -37,7 +37,7 @@ func getSimpleMetricsQuery(url *url.URL) string {
 	values := url.Query()
 	values.Set("start", "1d-ago")
 	aggFn := aggFns[rand.Intn(len(aggFns))]
-	values.Set("m", fmt.Sprintf("%s:3h-%s:test.metric.0{color=\"yellow\"}", aggFn, aggFn))
+	values.Set("m", fmt.Sprintf("%s:3h-%s:test-metric-0{color=\"yellow\"}", aggFn, aggFn))
 	url.RawQuery = values.Encode()
 	str := url.String()
 	log.Errorf("final url is %+v", str)
@@ -48,7 +48,7 @@ func getWildcardMetricsQuery(url *url.URL) string {
 	values := url.Query()
 	values.Set("start", "1d-ago")
 	aggFn := aggFns[rand.Intn(len(aggFns))]
-	values.Set("m", fmt.Sprintf("%s:3h-%s:test.metric.0{color=*}", aggFn, aggFn))
+	values.Set("m", fmt.Sprintf("%s:3h-%s:test-metric-0{color=*}", aggFn, aggFn))
 	url.RawQuery = values.Encode()
 	str := url.String()
 	log.Errorf("final url is %+v", str)
@@ -56,8 +56,8 @@ func getWildcardMetricsQuery(url *url.URL) string {
 }
 
 // Returns elapsed time. If verbose, logs the number of returned series
-func sendSingleOTSDBRequest(client *http.Client, mqType metricsQueryTypes, url string, verbose bool) float64 {
-	req, err := http.NewRequest("POST", url, nil)
+func sendSingleOTSDBRequest(client *http.Client, mqType metricsQueryTypes, url string, verbose bool) (float64, int) {
+	req, err := http.NewRequest("GET", url, nil)
 	if err != nil {
 		log.Fatalf("sendRequest: http.NewRequest ERROR: %v", err)
 	}
@@ -78,7 +78,7 @@ func sendSingleOTSDBRequest(client *http.Client, mqType metricsQueryTypes, url s
 		log.Fatalf("sendRequest: response unmarshal ERROR: %v", err)
 	}
 	log.Infof("returned response: %v in %+v. Num series=%+v", mqType, time.Since(stime), len(m))
-	return float64(time.Since(stime).Milliseconds())
+	return float64(time.Since(stime).Milliseconds()), len(m)
 }
 
 // returns a map of qtype to list of result query times and a map of qType to the raw url to send requests to
@@ -104,20 +104,23 @@ func initMetricsResultMap(numIterations int, reqStr string) (map[metricsQueryTyp
 	return results, rawUrl
 }
 
-func StartMetricsQuery(dest string, numIterations int, continuous, verbose bool) {
+func StartMetricsQuery(dest string, numIterations int, continuous, verbose bool) map[string]bool {
 	rand.Seed(time.Now().UnixNano())
 	client := http.DefaultClient
 	if numIterations == 0 && !continuous {
 		log.Fatalf("Iterations must be greater than 0")
 	}
-
+	validResult := make(map[string]bool)
 	requestStr := fmt.Sprintf("%s/api/query", dest)
 	results, queries := initMetricsResultMap(numIterations, requestStr)
 	for i := 0; i < numIterations || continuous; i++ {
 		for qType, query := range queries {
-			time := sendSingleOTSDBRequest(client, qType, query, verbose)
+			time, numTS := sendSingleOTSDBRequest(client, qType, query, verbose)
 			if !continuous {
 				results[qType][i] = time
+			}
+			if numTS > 0 {
+				validResult[qType.String()] = true
 			}
 		}
 	}
@@ -130,4 +133,5 @@ func StartMetricsQuery(dest string, numIterations int, continuous, verbose bool)
 		min, _ := stats.Min(qRes)
 		log.Infof("QueryType: %s. Min:%+vms, Max:%+vms, Avg:%+vms, P95:%+vms", qType.String(), min, max, avg, p95)
 	}
+	return validResult
 }
