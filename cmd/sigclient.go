@@ -94,23 +94,6 @@ var esQueryCmd = &cobra.Command{
 	},
 }
 
-var metricsQueryCmd = &cobra.Command{
-	Use:   "otsdb",
-	Short: "send otsdb queries to SigScalr",
-	Run: func(cmd *cobra.Command, args []string) {
-		dest, _ := cmd.Flags().GetString("dest")
-		numIterations, _ := cmd.Flags().GetInt("numIterations")
-		verbose, _ := cmd.Flags().GetBool("verbose")
-		continuous, _ := cmd.Flags().GetBool("continuous")
-
-		log.Infof("dest : %+v\n", dest)
-		log.Infof("numIterations : %+v\n", numIterations)
-		log.Infof("verbose : %+v\n", verbose)
-		log.Infof("continuous : %+v\n", continuous)
-		query.StartMetricsQuery(dest, numIterations, continuous, verbose)
-	},
-}
-
 var cmdWrap wrapper
 
 type wrapper struct {
@@ -125,7 +108,7 @@ func (w *wrapper) Run(f func(cmd *cobra.Command, args []string) error) func(cmd 
 	}
 }
 
-var metricsQueryValidateOutputCmd = &cobra.Command{
+var metricsQueryCmd = &cobra.Command{
 	Use:   "otsdb",
 	Short: "send otsdb queries to SigScalr",
 	Run: cmdWrap.Run(func(cmd *cobra.Command, args []string) error {
@@ -140,14 +123,14 @@ var metricsQueryValidateOutputCmd = &cobra.Command{
 		log.Infof("verbose : %+v\n", verbose)
 		log.Infof("continuous : %+v\n", continuous)
 		log.Infof("validateMetricsOutput : %+v\n", validateMetricsOutput)
-		if validateMetricsOutput {
-			resTS := query.StartMetricsQuery(dest, numIterations, continuous, verbose)
-			for k, v := range resTS {
-				if !v {
-					return fmt.Errorf("metrics query has no results for query type: %s", k)
-				}
+		resTS := query.StartMetricsQuery(dest, numIterations, continuous, verbose, validateMetricsOutput)
+		for k, v := range resTS {
+			if !v {
+				log.Errorf("metrics query has no results for query type: %s", k)
+				return fmt.Errorf("metrics query has no results for query type: %s", k)
 			}
 		}
+
 		return nil
 	}),
 }
@@ -200,7 +183,6 @@ func init() {
 
 	queryCmd.AddCommand(esQueryCmd)
 	queryCmd.AddCommand(metricsQueryCmd)
-	queryCmd.AddCommand(metricsQueryValidateOutputCmd)
 
 	ingestCmd.AddCommand(esBulkCmd)
 	ingestCmd.AddCommand(metricsIngestCmd)

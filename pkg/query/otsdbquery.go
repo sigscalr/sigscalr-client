@@ -104,7 +104,7 @@ func initMetricsResultMap(numIterations int, reqStr string) (map[metricsQueryTyp
 	return results, rawUrl
 }
 
-func StartMetricsQuery(dest string, numIterations int, continuous, verbose bool) map[string]bool {
+func StartMetricsQuery(dest string, numIterations int, continuous, verbose, validateMetricsOutput bool) map[string]bool {
 	rand.Seed(time.Now().UnixNano())
 	client := http.DefaultClient
 	if numIterations == 0 && !continuous {
@@ -119,7 +119,7 @@ func StartMetricsQuery(dest string, numIterations int, continuous, verbose bool)
 			if !continuous {
 				results[qType][i] = time
 			}
-			if numTS > 0 {
+			if validateMetricsOutput && numTS > 0 {
 				validResult[qType.String()] = true
 			}
 		}
