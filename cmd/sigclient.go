@@ -1,6 +1,7 @@
 package cmd
 
 import (
+	"fmt"
 	"verifier/pkg/ingest"
 	"verifier/pkg/query"
 	"verifier/pkg/trace"
@@ -93,21 +94,45 @@ var esQueryCmd = &cobra.Command{
 	},
 }
 
+var cmdWrap wrapper
+
+type wrapper struct {
+	err error
+}
+
+// RunE fails to proceed further in case of error resulting in not executing PostRun actions
+func (w *wrapper) Run(f func(cmd *cobra.Command, args []string) error) func(cmd *cobra.Command, args []string) {
+	return func(cmd *cobra.Command, args []string) {
+		err := f(cmd, args)
+		w.err = err
+	}
+}
+
 var metricsQueryCmd = &cobra.Command{
 	Use:   "otsdb",
 	Short: "send otsdb queries to SigScalr",
-	Run: func(cmd *cobra.Command, args []string) {
+	Run: cmdWrap.Run(func(cmd *cobra.Command, args []string) error {
 		dest, _ := cmd.Flags().GetString("dest")
 		numIterations, _ := cmd.Flags().GetInt("numIterations")
 		verbose, _ := cmd.Flags().GetBool("verbose")
 		continuous, _ := cmd.Flags().GetBool("continuous")
+		validateMetricsOutput, _ := cmd.Flags().GetBool("validateMetricsOutput")
 
 		log.Infof("dest : %+v\n", dest)
 		log.Infof("numIterations : %+v\n", numIterations)
 		log.Infof("verbose : %+v\n", verbose)
 		log.Infof("continuous : %+v\n", continuous)
-		query.StartMetricsQuery(dest, numIterations, continuous, verbose)
-	},
+		log.Infof("validateMetricsOutput : %+v\n", validateMetricsOutput)
+		resTS := query.StartMetricsQuery(dest, numIterations, continuous, verbose, validateMetricsOutput)
+		for k, v := range resTS {
+			if !v {
+				log.Errorf("metrics query has no results for query type: %s", k)
+				return fmt.Errorf("metrics query has no results for query type: %s", k)
+			}
+		}
+
+		return nil
+	}),
 }
 
 var queryCmd = &cobra.Command{
@@ -153,6 +178,7 @@ func init() {
 	queryCmd.PersistentFlags().IntP("numIterations", "n", 10, "number of times to run entire query suite")
 	queryCmd.PersistentFlags().BoolP("verbose", "v", false, "Verbose querying will output raw docs returned by queries")
 	queryCmd.PersistentFlags().BoolP("continuous", "c", false, "Continuous querying will ignore -c and -v and will continuously send queries to the destination")
+	queryCmd.PersistentFlags().BoolP("validateMetricsOutput", "y", false, "check if metric querries return any results")
 	queryCmd.PersistentFlags().StringP("filePath", "f", "", "filepath to csv file to use to run queries from")
 
 	queryCmd.AddCommand(esQueryCmd)
