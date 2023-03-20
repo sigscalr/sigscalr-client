@@ -119,8 +119,8 @@ func StartMetricsQuery(dest string, numIterations int, continuous, verbose, vali
 			if !continuous {
 				results[qType][i] = time
 			}
-			if validateMetricsOutput && numTS > 0 {
-				validResult[qType.String()] = true
+			if validateMetricsOutput && numTS == 0 {
+				validResult[qType.String()] = false
 			}
 		}
 	}
