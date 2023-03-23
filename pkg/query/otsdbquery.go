@@ -37,7 +37,7 @@ func getSimpleMetricsQuery(url *url.URL) string {
 	values := url.Query()
 	values.Set("start", "1d-ago")
 	aggFn := aggFns[rand.Intn(len(aggFns))]
-	values.Set("m", fmt.Sprintf("%s:3h-%s:test.metric.0{color=\"yellow\"}", aggFn, aggFn))
+	values.Set("m", fmt.Sprintf("%s:3h-%s:testmetric0{color=\"yellow\"}", aggFn, aggFn))
 	url.RawQuery = values.Encode()
 	str := url.String()
 	log.Errorf("final url is %+v", str)
@@ -48,7 +48,7 @@ func getWildcardMetricsQuery(url *url.URL) string {
 	values := url.Query()
 	values.Set("start", "1d-ago")
 	aggFn := aggFns[rand.Intn(len(aggFns))]
-	values.Set("m", fmt.Sprintf("%s:3h-%s:test.metric.0{color=*}", aggFn, aggFn))
+	values.Set("m", fmt.Sprintf("%s:3h-%s:testmetric0{color=*}", aggFn, aggFn))
 	url.RawQuery = values.Encode()
 	str := url.String()
 	log.Errorf("final url is %+v", str)
@@ -119,8 +119,8 @@ func StartMetricsQuery(dest string, numIterations int, continuous, verbose, vali
 			if !continuous {
 				results[qType][i] = time
 			}
-			if validateMetricsOutput && numTS > 0 {
-				validResult[qType.String()] = true
+			if validateMetricsOutput && numTS == 0 {
+				validResult[qType.String()] = false
 			}
 		}
 	}
