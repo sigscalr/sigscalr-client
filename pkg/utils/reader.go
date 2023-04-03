@@ -100,6 +100,9 @@ func randomizeBody(f *gofakeit.Faker, m map[string]interface{}, addts bool) {
 	m["user_email"] = p.Contact.Email
 
 	m["user_color"] = f.Color()
+	m["weekday"] = f.WeekDay()
+	m["http_method"] = f.HTTPMethod()
+	m["http_status"] = f.HTTPStatusCodeSimple()
 	m["app_name"] = f.AppName()
 	m["app_version"] = f.AppVersion()
 	m["ident"] = f.UUID()
