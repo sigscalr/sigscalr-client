@@ -208,7 +208,7 @@ func StartIngestion(iType IngestType, generatorType, dataFile string, totalEvent
 	var wg sync.WaitGroup
 	totalEventsPerProcess := totalEvents / processCount
 
-	ticker := time.NewTicker(time.Minute)
+	ticker := time.NewTicker(60 * time.Second)
 	done := make(chan bool)
 	totalSent := uint64(0)
 
