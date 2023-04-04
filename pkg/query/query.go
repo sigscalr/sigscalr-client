@@ -8,7 +8,6 @@ import (
 	"io"
 	"io/ioutil"
 	"net/http"
-	"net/url"
 	"os"
 	"strconv"
 	"time"
@@ -408,8 +407,9 @@ func runContinuousQueries(client *http.Client, requestStr string) {
 	}
 }
 
-// Run queries from a csv file
-
+// Run queries from a csv file. Expects search text, queryStartTime, queryEndTime, indexName, relation, and count in each row
+// relation is one of "eq", "gt", "lt"
+// if relation is "", count is ignored and no response validation is done
 func RunQueryFromFile(dest string, numIterations int, prefix string, continuous, verbose bool, filepath string) {
 	// open file
 	f, err := os.Open(filepath)
@@ -432,15 +432,16 @@ func RunQueryFromFile(dest string, numIterations int, prefix string, continuous,
 			return
 		}
 
-		queryString, _ := url.Parse(rec[0])
-		queryParams, _ := url.ParseQuery(queryString.RawQuery)
-
+		if len(rec) != 6 {
+			log.Errorf("RunQueryFromFile: Invalid number of columns in query file: [%v]. Expected 6, err: %v", rec, err)
+			return
+		}
 		data := map[string]interface{}{
 			"state":      "query",
-			"searchText": queryParams["searchText"][0],
-			"startEpoch": queryParams["startEpoch"][0],
-			"endEpoch":   queryParams["endEpoch"][0],
-			"indexName":  queryParams["indexName"][0],
+			"searchText": rec[0],
+			"startEpoch": rec[1],
+			"endEpoch":   rec[2],
+			"indexName":  rec[3],
 		}
 
 		// create websocket connection
@@ -458,6 +459,7 @@ func RunQueryFromFile(dest string, numIterations int, prefix string, continuous,
 		}
 
 		readEvent := make(map[string]interface{})
+		sTime := time.Now()
 		for {
 			err = conn.ReadJSON(&readEvent)
 			if err != nil {
@@ -465,22 +467,36 @@ func RunQueryFromFile(dest string, numIterations int, prefix string, continuous,
 				break
 			}
 			switch readEvent["state"] {
-			case "RUNNING":
-
-			case "QUERY_UPDATE":
-
+			case "RUNNING", "QUERY_UPDATE":
 			case "COMPLETE":
 				for eKey, eValue := range readEvent {
 					if eKey == "totalMatched" {
-						for k, v := range eValue.(map[string]interface{}) {
-							if k == "value" {
-								actualHits := strconv.FormatInt(int64(v.(float64)), 10)
-								if actualHits != rec[1] {
-									log.Fatalf("RunQueryFromFile: Actual Hits: %v does not match Expected hits: %v for query:%v", actualHits, rec[1], rec[0])
-								} else {
-									log.Infof("RunQueryFromFile: Query %v was succesful", rec[0])
+						var hits bool
+						var finalHits float64
+						var err error
+						switch eValue := eValue.(type) {
+						case float64:
+							finalHits = eValue
+							hits, err = verifyHits(finalHits, rec[4], rec[5])
+						case map[string]interface{}:
+							for k, v := range eValue {
+								if k == "value" {
+									var ok bool
+									finalHits, ok = v.(float64)
+									if !ok {
+										log.Fatalf("RunQueryFromFile: Returned total matched is not a float: %v", v)
+									}
+									hits, err = verifyHits(finalHits, rec[4], rec[5])
+
 								}
 							}
+						}
+						if err != nil {
+							log.Fatalf("RunQueryFromFile: Error in verifying hits: %v", err)
+						} else if !hits {
+							log.Fatalf("RunQueryFromFile: Actual Hits: %v is not [%s %v] for query:%v", finalHits, rec[5], rec[4], rec[0])
+						} else {
+							log.Infof("RunQueryFromFile: Query %v was succesful. In %+v", rec[0], time.Since(sTime))
 						}
 					}
 				}
@@ -489,4 +505,35 @@ func RunQueryFromFile(dest string, numIterations int, prefix string, continuous,
 			}
 		}
 	}
+}
+
+// verifyHits verifies the hits returned by the query.
+// returns true, nil if relation is ""
+func verifyHits(hits float64, relation, expected string) (bool, error) {
+	if relation == "" {
+		return true, nil
+	}
+	fltVal, err := strconv.ParseFloat(expected, 64)
+	if err != nil {
+		log.Errorf("verifyHits: Error in parsing expected value: %v, err: %v", expected, err)
+		return false, err
+	}
+	switch relation {
+	case "eq":
+		if hits == fltVal {
+			return true, nil
+		}
+	case "gt":
+		if hits > fltVal {
+			return true, nil
+		}
+	case "lt":
+		if hits < fltVal {
+			return true, nil
+		}
+	default:
+		log.Errorf("verifyHits: Invalid relation: %v", relation)
+		return false, fmt.Errorf("verifyHits: Invalid relation: %v", relation)
+	}
+	return false, nil
 }
