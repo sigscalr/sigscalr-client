@@ -76,7 +76,7 @@ Options:
 -d, --dest string          Destination URL. Client will append /{indexPrefix}*/_search
 -i, --indexPrefix string   Index prefix to search (default "ind")
 -n, --numIterations int    Number of iterations to send query suite (default 10)
--f, --filePath string      path to csv file containing query suite to send to server
+-f, --filePath string      path to csv file containing query suite to send to server. Expects CSV of with [search text, startTime, endTime, indexName, relation, count] in each row
 -v  verbose                Output hits and elapsed time for each query
 -c  continuous             If true, ignores -n and -v and will continuously send queries to the destination and will log results
 ```
