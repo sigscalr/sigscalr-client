@@ -109,7 +109,6 @@ func randomizeBody(f *gofakeit.Faker, m map[string]interface{}, addts bool) {
 	m["user_agent"] = f.UserAgent()
 	m["url"] = f.URL()
 	m["group"] = fmt.Sprintf("group %d", f.Number(0, 2))
-	m["question"] = f.Question()
 	m["latency"] = f.Number(0, 10_000_000)
 
 	if addts {
