@@ -344,7 +344,7 @@ func logQuerySummary(numIterations int, res map[logsQueryTypes][]float64) {
 	}
 }
 
-func StartQuery(dest string, numIterations int, prefix string, continuous, verbose bool) {
+func StartQuery(dest string, numIterations int, prefix string, continuous, verbose bool, bearerToken string) {
 	client := http.DefaultClient
 	if numIterations == 0 && !continuous {
 		log.Fatalf("Iterations must be greater than 0")
@@ -410,7 +410,7 @@ func runContinuousQueries(client *http.Client, requestStr string) {
 // Run queries from a csv file. Expects search text, queryStartTime, queryEndTime, indexName, relation, and count in each row
 // relation is one of "eq", "gt", "lt"
 // if relation is "", count is ignored and no response validation is done
-func RunQueryFromFile(dest string, numIterations int, prefix string, continuous, verbose bool, filepath string) {
+func RunQueryFromFile(dest string, numIterations int, prefix string, continuous, verbose bool, filepath string, bearerToken string) {
 	// open file
 	f, err := os.Open(filepath)
 	if err != nil {

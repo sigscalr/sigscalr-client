@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"io/ioutil"
 	"net/http"
+	"strings"
 	"sync"
 	"sync/atomic"
 	"time"
@@ -41,7 +42,9 @@ const PRINT_FREQ = 100_000
 
 var actionLines []string = []string{}
 
-func sendRequest(iType IngestType, client *http.Client, lines []byte, url string) {
+func sendRequest(iType IngestType, client *http.Client, lines []byte, url string, bearerToken string) {
+
+	bearerToken = "Bearer " + strings.TrimSpace(bearerToken)
 
 	buf := bytes.NewBuffer(lines)
 
@@ -56,7 +59,9 @@ func sendRequest(iType IngestType, client *http.Client, lines []byte, url string
 	}
 
 	req, err := http.NewRequest("POST", requestStr, buf)
-
+	if bearerToken != "" {
+		req.Header.Add("Authorization", bearerToken)
+	}
 	req.Header.Set("Content-Type", "application/json")
 
 	if err != nil {
@@ -124,7 +129,7 @@ func getActionLine(i int) string {
 }
 
 func runIngestion(iType IngestType, rdr utils.Generator, wg *sync.WaitGroup, url string, totalEvents int,
-	continous bool, batchSize, processNo int, indexSuffix string, ctr *uint64) {
+	continous bool, batchSize, processNo int, indexSuffix string, ctr *uint64, bearerToken string) {
 	defer wg.Done()
 	eventCounter := 0
 	t := http.DefaultTransport.(*http.Transport).Clone()
@@ -149,7 +154,7 @@ func runIngestion(iType IngestType, rdr utils.Generator, wg *sync.WaitGroup, url
 			log.Errorf("Error generating bulk body!: %v", err)
 			return
 		}
-		sendRequest(iType, client, payload, url)
+		sendRequest(iType, client, payload, url, bearerToken)
 		eventCounter += recsInBatch
 		atomic.AddUint64(ctr, uint64(recsInBatch))
 	}
@@ -203,7 +208,7 @@ func getReaderFromArgs(iType IngestType, nummetrics int, gentype, str string, ts
 }
 
 func StartIngestion(iType IngestType, generatorType, dataFile string, totalEvents int, continuous bool,
-	batchSize int, url string, indexPrefix string, indexName string, numIndices, processCount int, addTs bool, nMetrics int) {
+	batchSize int, url string, indexPrefix string, indexName string, numIndices, processCount int, addTs bool, nMetrics int, bearerToken string) {
 	log.Printf("Starting ingestion at %+v for %+v", url, iType.String())
 	var wg sync.WaitGroup
 	totalEventsPerProcess := totalEvents / processCount
@@ -222,7 +227,7 @@ func StartIngestion(iType IngestType, generatorType, dataFile string, totalEvent
 		if err != nil {
 			log.Fatalf("StartIngestion: failed to initalize reader! %+v", err)
 		}
-		go runIngestion(iType, reader, &wg, url, totalEventsPerProcess, continuous, batchSize, i+1, indexPrefix, &totalSent)
+		go runIngestion(iType, reader, &wg, url, totalEventsPerProcess, continuous, batchSize, i+1, indexPrefix, &totalSent, bearerToken)
 	}
 
 	go func() {

@@ -35,6 +35,7 @@ var esBulkCmd = &cobra.Command{
 		ts, _ := cmd.Flags().GetBool("timestamp")
 		dataFile, _ := cmd.Flags().GetString("filePath")
 		indexName, _ := cmd.Flags().GetString("indexName")
+		bearerToken, _ := cmd.Flags().GetString("bearerToken")
 
 		log.Infof("processCount : %+v\n", processCount)
 		log.Infof("dest : %+v\n", dest)
@@ -43,9 +44,10 @@ var esBulkCmd = &cobra.Command{
 		log.Infof("indexPrefix : %+v\n", indexPrefix)
 		log.Infof("indexName : %+v\n", indexName)
 		log.Infof("numIndices : %+v\n", numIndices)
+		log.Infof("bearerToken : %+v\n", bearerToken)
 		log.Infof("generatorType : %+v. Add timestamp: %+v\n", generatorType, ts)
 
-		ingest.StartIngestion(ingest.ESBulk, generatorType, dataFile, totalEvents, continuous, batchSize, dest, indexPrefix, indexName, numIndices, processCount, ts, 0)
+		ingest.StartIngestion(ingest.ESBulk, generatorType, dataFile, totalEvents, continuous, batchSize, dest, indexPrefix, indexName, numIndices, processCount, ts, 0, bearerToken)
 	},
 }
 
@@ -60,12 +62,14 @@ var metricsIngestCmd = &cobra.Command{
 		continuous, _ := cmd.Flags().GetBool("continuous")
 		batchSize, _ := cmd.Flags().GetInt("batchSize")
 		nMetrics, _ := cmd.Flags().GetInt("metrics")
+		bearerToken, _ := cmd.Flags().GetString("bearerToken")
 
 		log.Infof("processCount : %+v\n", processCount)
 		log.Infof("dest : %+v\n", dest)
 		log.Infof("totalEvents : %+v. Continuous: %+v\n", totalEvents, continuous)
 		log.Infof("batchSize : %+v. Num metrics: %+v\n", batchSize, nMetrics)
-		ingest.StartIngestion(ingest.OpenTSDB, "", "", totalEvents, continuous, batchSize, dest, "", "", 0, processCount, false, nMetrics)
+		log.Infof("bearerToken : %+v\n", bearerToken)
+		ingest.StartIngestion(ingest.OpenTSDB, "", "", totalEvents, continuous, batchSize, dest, "", "", 0, processCount, false, nMetrics, bearerToken)
 	},
 }
 
@@ -79,6 +83,7 @@ var esQueryCmd = &cobra.Command{
 		continuous, _ := cmd.Flags().GetBool("continuous")
 		indexPrefix, _ := cmd.Flags().GetString("indexPrefix")
 		filepath, _ := cmd.Flags().GetString("filePath")
+		bearerToken, _ := cmd.Flags().GetString("bearerToken")
 
 		log.Infof("dest : %+v\n", dest)
 		log.Infof("numIterations : %+v\n", numIterations)
@@ -86,10 +91,11 @@ var esQueryCmd = &cobra.Command{
 		log.Infof("verbose : %+v\n", verbose)
 		log.Infof("continuous : %+v\n", continuous)
 		log.Infof("filePath : %+v\n", filepath)
+		log.Infof("bearerToken : %+v\n", bearerToken)
 		if filepath != "" {
-			query.RunQueryFromFile(dest, numIterations, indexPrefix, continuous, verbose, filepath)
+			query.RunQueryFromFile(dest, numIterations, indexPrefix, continuous, verbose, filepath, bearerToken)
 		} else {
-			query.StartQuery(dest, numIterations, indexPrefix, continuous, verbose)
+			query.StartQuery(dest, numIterations, indexPrefix, continuous, verbose, bearerToken)
 		}
 	},
 }
@@ -162,6 +168,7 @@ func init() {
 	rootCmd.PersistentFlags().StringP("dest", "d", "", "Server URL.")
 	rootCmd.PersistentFlags().StringP("indexPrefix", "i", "ind", "index prefix")
 	rootCmd.PersistentFlags().StringP("indexName", "a", "", "index name")
+	rootCmd.PersistentFlags().StringP("bearerToken", "r", "", "Bearer token")
 
 	ingestCmd.PersistentFlags().IntP("processCount", "p", 1, "Number of parallel process to ingest data from.")
 	ingestCmd.PersistentFlags().IntP("totalEvents", "t", 1000000, "Total number of events to send")
