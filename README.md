@@ -16,6 +16,7 @@ Options:
   -x, --filePath string      path to json file containing loglines to send to server
   -h, --help                 help for ingest
   -i, --indexPrefix string   Index prefix to ingest (default "ind")
+  -r, --bearerToken string   Bearer token of your org to ingest (default "")
   -n, --numIndices int       number of indices to ingest to (default 1)
   -p, --processCount int     Number of parallel process to ingest data from. (default 1)
   -t, --totalEvents int      Total number of events to send (default 1000000)
@@ -75,6 +76,7 @@ Options:
 ```
 -d, --dest string          Destination URL. Client will append /{indexPrefix}*/_search
 -i, --indexPrefix string   Index prefix to search (default "ind")
+-r, --bearerToken string   Bearer token of your org to ingest (default "")
 -n, --numIterations int    Number of iterations to send query suite (default 10)
 -f, --filePath string      path to csv file containing query suite to send to server. Expects CSV of with [search text, startTime, endTime, indexName, relation, count] in each row
 -v  verbose                Output hits and elapsed time for each query
