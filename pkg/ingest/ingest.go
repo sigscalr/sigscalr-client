@@ -42,9 +42,9 @@ const PRINT_FREQ = 100_000
 
 var actionLines []string = []string{}
 
-func sendRequest(iType IngestType, client *http.Client, lines []byte, url string, bearereToken string) {
+func sendRequest(iType IngestType, client *http.Client, lines []byte, url string, bearerToken string) {
 
-	bearereToken = "Bearer " + strings.TrimSpace(bearereToken)
+	bearerToken = "Bearer " + strings.TrimSpace(bearerToken)
 
 	buf := bytes.NewBuffer(lines)
 
@@ -59,7 +59,9 @@ func sendRequest(iType IngestType, client *http.Client, lines []byte, url string
 	}
 
 	req, err := http.NewRequest("POST", requestStr, buf)
-	req.Header.Add("Authorization", bearereToken)
+	if bearerToken != "" {
+		req.Header.Add("Authorization", bearerToken)
+	}
 	req.Header.Set("Content-Type", "application/json")
 
 	if err != nil {
