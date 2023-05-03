@@ -114,7 +114,7 @@ Options:
 
 ## Utils
 
-To convert a TSV to a JSON file that can be ingested via `-g dynamic -f file`:
+To convert a TSV to a JSON file that can be ingested via `-f file`:
 ```bash
 $ go run cmd/utils/converter.go --input {input file name} --output {output file name}
 ```
