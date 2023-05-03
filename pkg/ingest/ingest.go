@@ -201,7 +201,7 @@ func getReaderFromArgs(iType IngestType, nummetrics int, gentype, str string, ts
 		seed := int64(1001)
 		rdr = utils.InitDynamicUserGenerator(ts, seed)
 	default:
-		return nil, fmt.Errorf("unsupported reader type %s. Options=[static,dynamic,file]", gentype)
+		return nil, fmt.Errorf("unsupported reader type %s. Options=[static,dynamic-user,file,benchmark]", gentype)
 	}
 	err := rdr.Init(str)
 	return rdr, err
