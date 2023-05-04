@@ -2,7 +2,7 @@ name: sigclient-tools-release
 on:
   push:
     branches:
-      - 'client-docker'
+      - 'main'
 jobs:
   sigclient-tool-binaries:
     runs-on: ubuntu-latest
@@ -30,7 +30,7 @@ jobs:
         name: Package SigClient
         run: |
           ./package-sigclient.sh -b s3://sigscalr-releases -p linux/amd64,linux/arm64
-  siclient-docker-images:
+  sigclient-docker-images:
     runs-on: ubuntu-latest
     environment: build-environment
     permissions:
