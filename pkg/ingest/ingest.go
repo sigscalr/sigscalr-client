@@ -76,11 +76,12 @@ func sendRequest(iType IngestType, client *http.Client, lines []byte, url string
 	}
 }
 
-func generateBody(iType IngestType, recs int, i int, rdr utils.Generator, actLines []string) ([]byte, error) {
+func generateBody(iType IngestType, recs int, i int, rdr utils.Generator,
+	actLines []string, bb *bytebufferpool.ByteBuffer) ([]byte, error) {
 	switch iType {
 	case ESBulk:
 		actionLine := actLines[i%len(actLines)]
-		return generateESBody(recs, actionLine, rdr)
+		return generateESBody(recs, actionLine, rdr, bb)
 	case OpenTSDB:
 		return generateOpenTSDBBody(recs, rdr)
 	default:
@@ -89,9 +90,8 @@ func generateBody(iType IngestType, recs int, i int, rdr utils.Generator, actLin
 	return nil, fmt.Errorf("unsupported ingest type %s", iType.String())
 }
 
-func generateESBody(recs int, actionLine string, rdr utils.Generator) ([]byte, error) {
-	bb := bytebufferpool.Get()
-	defer bytebufferpool.Put(bb)
+func generateESBody(recs int, actionLine string, rdr utils.Generator,
+	bb *bytebufferpool.ByteBuffer) ([]byte, error) {
 
 	for i := 0; i < recs; i++ {
 		_, _ = bb.WriteString(actionLine)
@@ -143,6 +143,7 @@ func runIngestion(iType IngestType, rdr utils.Generator, wg *sync.WaitGroup, url
 	}
 
 	i := 0
+	var bb *bytebufferpool.ByteBuffer
 	for continous || eventCounter < totalEvents {
 
 		recsInBatch := batchSize
@@ -150,12 +151,21 @@ func runIngestion(iType IngestType, rdr utils.Generator, wg *sync.WaitGroup, url
 			recsInBatch = totalEvents - eventCounter
 		}
 		i++
-		payload, err := generateBody(iType, recsInBatch, i, rdr, actLines)
+		if iType == ESBulk {
+			bb = bytebufferpool.Get()
+		}
+		payload, err := generateBody(iType, recsInBatch, i, rdr, actLines, bb)
 		if err != nil {
 			log.Errorf("Error generating bulk body!: %v", err)
+			if iType == ESBulk {
+				bytebufferpool.Put(bb)
+			}
 			return
 		}
 		sendRequest(iType, client, payload, url, bearerToken)
+		if iType == ESBulk {
+			bytebufferpool.Put(bb)
+		}
 		eventCounter += recsInBatch
 		atomic.AddUint64(ctr, uint64(recsInBatch))
 	}
