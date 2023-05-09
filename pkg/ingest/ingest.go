@@ -40,8 +40,6 @@ func (q IngestType) String() string {
 
 const PRINT_FREQ = 100_000
 
-var actionLines []string = []string{}
-
 func sendRequest(iType IngestType, client *http.Client, lines []byte, url string, bearerToken string) {
 
 	bearerToken = "Bearer " + strings.TrimSpace(bearerToken)
@@ -78,10 +76,10 @@ func sendRequest(iType IngestType, client *http.Client, lines []byte, url string
 	}
 }
 
-func generateBody(iType IngestType, recs int, i int, rdr utils.Generator) ([]byte, error) {
+func generateBody(iType IngestType, recs int, i int, rdr utils.Generator, actLines []string) ([]byte, error) {
 	switch iType {
 	case ESBulk:
-		actionLine := getActionLine(i)
+		actionLine := actLines[i%len(actLines)]
 		return generateESBody(recs, actionLine, rdr)
 	case OpenTSDB:
 		return generateOpenTSDBBody(recs, rdr)
@@ -124,12 +122,10 @@ func generateOpenTSDBBody(recs int, rdr utils.Generator) ([]byte, error) {
 	return retVal, nil
 }
 
-func getActionLine(i int) string {
-	return actionLines[i%len(actionLines)]
-}
-
 func runIngestion(iType IngestType, rdr utils.Generator, wg *sync.WaitGroup, url string, totalEvents int,
-	continous bool, batchSize, processNo int, indexSuffix string, ctr *uint64, bearerToken string) {
+	continous bool, batchSize, processNo int, indexPrefix string, ctr *uint64, bearerToken string,
+	indexName string, numIndices int) {
+
 	defer wg.Done()
 	eventCounter := 0
 	t := http.DefaultTransport.(*http.Transport).Clone()
@@ -141,6 +137,11 @@ func runIngestion(iType IngestType, rdr utils.Generator, wg *sync.WaitGroup, url
 		Transport: t,
 	}
 
+	var actLines []string
+	if iType == ESBulk {
+		actLines = populateActionLines(indexPrefix, indexName, numIndices)
+	}
+
 	i := 0
 	for continous || eventCounter < totalEvents {
 
@@ -149,7 +150,7 @@ func runIngestion(iType IngestType, rdr utils.Generator, wg *sync.WaitGroup, url
 			recsInBatch = totalEvents - eventCounter
 		}
 		i++
-		payload, err := generateBody(iType, recsInBatch, i, rdr)
+		payload, err := generateBody(iType, recsInBatch, i, rdr, actLines)
 		if err != nil {
 			log.Errorf("Error generating bulk body!: %v", err)
 			return
@@ -160,11 +161,11 @@ func runIngestion(iType IngestType, rdr utils.Generator, wg *sync.WaitGroup, url
 	}
 }
 
-func populateActionLines(idxPrefix string, indexName string, numIndices int) {
+func populateActionLines(idxPrefix string, indexName string, numIndices int) []string {
 	if numIndices == 0 {
 		log.Fatalf("number of indices cannot be zero!")
 	}
-	actionLines = make([]string, numIndices)
+	actionLines := make([]string, numIndices)
 	for i := 0; i < numIndices; i++ {
 		var idx string
 		if indexName != "" {
@@ -175,6 +176,7 @@ func populateActionLines(idxPrefix string, indexName string, numIndices int) {
 		actionLine := "{\"index\": {\"_index\": \"" + idx + "\", \"_type\": \"_doc\"}}\n"
 		actionLines[i] = actionLine
 	}
+	return actionLines
 }
 
 func getReaderFromArgs(iType IngestType, nummetrics int, gentype, str string, ts bool) (utils.Generator, error) {
@@ -217,17 +219,14 @@ func StartIngestion(iType IngestType, generatorType, dataFile string, totalEvent
 	done := make(chan bool)
 	totalSent := uint64(0)
 
-	if iType == ESBulk {
-		populateActionLines(indexPrefix, indexName, numIndices)
-	}
-
 	for i := 0; i < processCount; i++ {
 		wg.Add(1)
 		reader, err := getReaderFromArgs(iType, nMetrics, generatorType, dataFile, addTs)
 		if err != nil {
 			log.Fatalf("StartIngestion: failed to initalize reader! %+v", err)
 		}
-		go runIngestion(iType, reader, &wg, url, totalEventsPerProcess, continuous, batchSize, i+1, indexPrefix, &totalSent, bearerToken)
+		go runIngestion(iType, reader, &wg, url, totalEventsPerProcess, continuous, batchSize, i+1, indexPrefix,
+			&totalSent, bearerToken, indexName, numIndices)
 	}
 
 	go func() {
