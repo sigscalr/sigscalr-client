@@ -55,7 +55,7 @@ func sendRequest(iType IngestType, client *http.Client, lines []byte, url string
 	case OpenTSDB:
 		requestStr = url + "/api/put"
 	default:
-		log.Errorf("unknown ingest type %+v", iType)
+		log.Fatalf("unknown ingest type %+v", iType)
 		return fmt.Errorf("unknown ingest type %+v", iType)
 	}
 
@@ -171,19 +171,20 @@ func runIngestion(iType IngestType, rdr utils.Generator, wg *sync.WaitGroup, url
 		}
 		var reqErr error
 		for i := 0; i < RETRY_COUNT; i++ {
-			log.Errorf("Error sending request, retrying: %v", err)
 			reqErr = sendRequest(iType, client, payload, url, bearerToken)
 			if reqErr == nil {
 				break
 			}
-			time.Sleep(time.Second * time.Duration(5*(i+1)))
+			sleepTime := time.Second * time.Duration(5*(i+1))
+			log.Errorf("Error sending request. Attempt: %d. Sleeping for %+v before retrying.", i+1, sleepTime.String())
+			time.Sleep(sleepTime)
 		}
 
 		if iType == ESBulk {
 			bytebufferpool.Put(bb)
 		}
 		if reqErr != nil {
-			log.Fatalf("Error sending request after %d attempts! %v", RETRY_COUNT, err)
+			log.Fatalf("Error sending request after %d attempts! %v", RETRY_COUNT, reqErr)
 			return
 		}
 		eventCounter += recsInBatch
