@@ -39,8 +39,10 @@ func (q IngestType) String() string {
 }
 
 const PRINT_FREQ = 100_000
+const RETRY_COUNT = 10
 
-func sendRequest(iType IngestType, client *http.Client, lines []byte, url string, bearerToken string) {
+// returns any errors encountered. It is the caller's responsibility to attempt retries
+func sendRequest(iType IngestType, client *http.Client, lines []byte, url string, bearerToken string) error {
 
 	bearerToken = "Bearer " + strings.TrimSpace(bearerToken)
 
@@ -53,7 +55,8 @@ func sendRequest(iType IngestType, client *http.Client, lines []byte, url string
 	case OpenTSDB:
 		requestStr = url + "/api/put"
 	default:
-		log.Fatalf("unknown ingest type %+v", iType)
+		log.Errorf("unknown ingest type %+v", iType)
+		return fmt.Errorf("unknown ingest type %+v", iType)
 	}
 
 	req, err := http.NewRequest("POST", requestStr, buf)
@@ -63,17 +66,21 @@ func sendRequest(iType IngestType, client *http.Client, lines []byte, url string
 	req.Header.Set("Content-Type", "application/json")
 
 	if err != nil {
-		log.Fatalf("sendRequest: http.NewRequest ERROR: %v", err)
+		log.Errorf("sendRequest: http.NewRequest ERROR: %v", err)
+		return err
 	}
 	resp, err := client.Do(req)
 	if err != nil {
-		log.Fatalf("sendRequest: client.Do ERROR: %v", err)
+		log.Errorf("sendRequest: client.Do ERROR: %v", err)
+		return err
 	}
 	defer resp.Body.Close()
 	_, err = ioutil.ReadAll(resp.Body)
 	if err != nil {
-		log.Fatalf("sendRequest: client.Do ERROR: %v", err)
+		log.Errorf("sendRequest: client.Do ERROR: %v", err)
+		return err
 	}
+	return nil
 }
 
 func generateBody(iType IngestType, recs int, i int, rdr utils.Generator,
@@ -162,9 +169,22 @@ func runIngestion(iType IngestType, rdr utils.Generator, wg *sync.WaitGroup, url
 			}
 			return
 		}
-		sendRequest(iType, client, payload, url, bearerToken)
+		var reqErr error
+		for i := 0; i < RETRY_COUNT; i++ {
+			log.Errorf("Error sending request, retrying: %v", err)
+			reqErr = sendRequest(iType, client, payload, url, bearerToken)
+			if reqErr == nil {
+				break
+			}
+			time.Sleep(time.Second * time.Duration(5*(i+1)))
+		}
+
 		if iType == ESBulk {
 			bytebufferpool.Put(bb)
+		}
+		if reqErr != nil {
+			log.Fatalf("Error sending request after %d attempts! %v", RETRY_COUNT, err)
+			return
 		}
 		eventCounter += recsInBatch
 		atomic.AddUint64(ctr, uint64(recsInBatch))
