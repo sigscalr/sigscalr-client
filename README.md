@@ -78,7 +78,7 @@ Options:
 -i, --indexPrefix string   Index prefix to search (default "ind")
 -r, --bearerToken string   Bearer token of your org to ingest (default "")
 -n, --numIterations int    Number of iterations to send query suite (default 10)
--f, --filePath string      path to csv file containing query suite to send to server. Expects CSV of with [search text, startTime, endTime, indexName, relation, count] in each row
+-f, --filePath string      path to csv file containing query suite to send to server. Expects CSV of with [search text, startTime, endTime, indexName, relation, count, queryLanguage] in each row
 -v  verbose                Output hits and elapsed time for each query
 -c  continuous             If true, ignores -n and -v and will continuously send queries to the destination and will log results
 ```
