@@ -432,16 +432,17 @@ func RunQueryFromFile(dest string, numIterations int, prefix string, continuous,
 			return
 		}
 
-		if len(rec) != 6 {
-			log.Errorf("RunQueryFromFile: Invalid number of columns in query file: [%v]. Expected 6, err: %v", rec, err)
+		if len(rec) != 7 {
+			log.Fatalf("RunQueryFromFile: Invalid number of columns in query file: [%v]. Expected 7", rec)
 			return
 		}
 		data := map[string]interface{}{
-			"state":      "query",
-			"searchText": rec[0],
-			"startEpoch": rec[1],
-			"endEpoch":   rec[2],
-			"indexName":  rec[3],
+			"state":         "query",
+			"searchText":    rec[0],
+			"startEpoch":    rec[1],
+			"endEpoch":      rec[2],
+			"indexName":     rec[3],
+			"queryLanguage": rec[6],
 		}
 
 		// create websocket connection
