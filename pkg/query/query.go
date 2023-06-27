@@ -510,7 +510,7 @@ func RunQueryFromFile(dest string, numIterations int, prefix string, continuous,
 						} else {
 							log.Infof("RunQueryFromFile: Query %v was succesful. In %+v", rec[0], time.Since(sTime))
 						}
-					} else if len(evaluationType) > 4 && evaluationType[:5] == "group" && eKey == "measure" {
+					} else if strings.HasPrefix(evaluationType, "group") && eKey == "measure" {
 						groupData := strings.Split(evaluationType, ":")
 						groupByList := eValue.([]interface{})
 						validated := false
