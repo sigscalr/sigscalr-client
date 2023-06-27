@@ -9,7 +9,9 @@ import (
 	"io/ioutil"
 	"net/http"
 	"os"
+	"reflect"
 	"strconv"
+	"strings"
 	"time"
 
 	"github.com/fasthttp/websocket"
@@ -407,9 +409,15 @@ func runContinuousQueries(client *http.Client, requestStr string) {
 	}
 }
 
-// Run queries from a csv file. Expects search text, queryStartTime, queryEndTime, indexName, relation, and count in each row
+// Run queries from a csv file. Expects search text, queryStartTime, queryEndTime, indexName,
+// evaluationType, relation, count, and queryLanguage in each row
 // relation is one of "eq", "gt", "lt"
 // if relation is "", count is ignored and no response validation is done
+// The evaluationType should either be "total" to count the number of returned rows, or a string like
+// "group:min(latency):New York City" for testing aggregates called in the query; the string should
+// start with "group" followed by a colon and the aggregate you want to test, followed by a colon
+// and a colon separated list of keys for the groupby call, or * if aggregates were called without
+// a groupby statement.
 func RunQueryFromFile(dest string, numIterations int, prefix string, continuous, verbose bool, filepath string, bearerToken string) {
 	// open file
 	f, err := os.Open(filepath)
@@ -432,8 +440,8 @@ func RunQueryFromFile(dest string, numIterations int, prefix string, continuous,
 			return
 		}
 
-		if len(rec) != 7 {
-			log.Fatalf("RunQueryFromFile: Invalid number of columns in query file: [%v]. Expected 7", rec)
+		if len(rec) != 8 {
+			log.Fatalf("RunQueryFromFile: Invalid number of columns in query file: [%v]. Expected 8", rec)
 			return
 		}
 		data := map[string]interface{}{
@@ -442,8 +450,11 @@ func RunQueryFromFile(dest string, numIterations int, prefix string, continuous,
 			"startEpoch":    rec[1],
 			"endEpoch":      rec[2],
 			"indexName":     rec[3],
-			"queryLanguage": rec[6],
+			"queryLanguage": rec[7],
 		}
+		evaluationType := rec[4]
+		relation := rec[5]
+		expectedValue := rec[6]
 
 		// create websocket connection
 		conn, _, err := websocket.DefaultDialer.Dial("ws://localhost/api/search/ws", nil)
@@ -471,14 +482,14 @@ func RunQueryFromFile(dest string, numIterations int, prefix string, continuous,
 			case "RUNNING", "QUERY_UPDATE":
 			case "COMPLETE":
 				for eKey, eValue := range readEvent {
-					if eKey == "totalMatched" {
+					if evaluationType == "total" && eKey == "totalMatched" {
 						var hits bool
 						var finalHits float64
 						var err error
 						switch eValue := eValue.(type) {
 						case float64:
 							finalHits = eValue
-							hits, err = verifyHits(finalHits, rec[4], rec[5])
+							hits, err = verifyInequality(finalHits, relation, expectedValue)
 						case map[string]interface{}:
 							for k, v := range eValue {
 								if k == "value" {
@@ -487,7 +498,7 @@ func RunQueryFromFile(dest string, numIterations int, prefix string, continuous,
 									if !ok {
 										log.Fatalf("RunQueryFromFile: Returned total matched is not a float: %v", v)
 									}
-									hits, err = verifyHits(finalHits, rec[4], rec[5])
+									hits, err = verifyInequality(finalHits, relation, expectedValue)
 
 								}
 							}
@@ -495,9 +506,59 @@ func RunQueryFromFile(dest string, numIterations int, prefix string, continuous,
 						if err != nil {
 							log.Fatalf("RunQueryFromFile: Error in verifying hits: %v", err)
 						} else if !hits {
-							log.Fatalf("RunQueryFromFile: Actual Hits: %v is not [%s %v] for query:%v", finalHits, rec[5], rec[4], rec[0])
+							log.Fatalf("RunQueryFromFile: Actual Hits: %v is not [%s %v] for query:%v", finalHits, rec[6], rec[5], rec[0])
 						} else {
 							log.Infof("RunQueryFromFile: Query %v was succesful. In %+v", rec[0], time.Since(sTime))
+						}
+					} else if strings.HasPrefix(evaluationType, "group") && eKey == "measure" {
+						groupData := strings.Split(evaluationType, ":")
+						groupByList := eValue.([]interface{})
+						validated := false
+
+						for _, v := range groupByList {
+							groupMap := v.(map[string]interface{})
+							groupByValues := groupMap["GroupByValues"].([]interface{})
+							groupByValuesStrs := make([]string, len(groupByValues))
+							for i := range groupByValues {
+								groupByValuesStrs[i] = groupByValues[i].(string)
+							}
+
+							if reflect.DeepEqual(groupByValuesStrs, groupData[2:]) {
+								measureVal := groupMap["MeasureVal"].(map[string]interface{})
+								actualValue, ok := measureVal[groupData[1]].(float64)
+
+								if !ok {
+									// Try converting it to a string and then a float.
+									actualValueStr, ok := measureVal[groupData[1]].(string)
+									if !ok {
+										log.Fatalf("RunQueryFromFile: Returned aggregate is not a string: %v", measureVal[groupData[1]])
+									}
+
+									var err error
+									actualValue, err = strconv.ParseFloat(actualValueStr, 64)
+
+									if err != nil {
+										log.Fatalf("RunQueryFromFile: Returned aggregate value is not a float: %v", actualValueStr)
+									}
+								}
+
+								ok, err = verifyInequality(actualValue, relation, expectedValue)
+
+								if err != nil {
+									log.Fatalf("RunQueryFromFile: Error in verifying aggregation: %v", err)
+								} else if !ok {
+									log.Fatalf("RunQueryFromFile: Actual aggregate value: %v is not [%s %v] for query: %v",
+										actualValue, expectedValue, relation, rec[0])
+								} else {
+									validated = true
+								}
+							}
+						}
+
+						if validated {
+							log.Infof("RunQueryFromFile: Query %v was succesful. In %+v", rec[0], time.Since(sTime))
+						} else {
+							log.Fatalf("RunQueryFromFile: specified group item not found for query %v", rec[0])
 						}
 					}
 				}
@@ -508,33 +569,33 @@ func RunQueryFromFile(dest string, numIterations int, prefix string, continuous,
 	}
 }
 
-// verifyHits verifies the hits returned by the query.
+// verifyInequality verifies the expected inequality returned by the query.
 // returns true, nil if relation is ""
-func verifyHits(hits float64, relation, expected string) (bool, error) {
+func verifyInequality(actual float64, relation, expected string) (bool, error) {
 	if relation == "" {
 		return true, nil
 	}
 	fltVal, err := strconv.ParseFloat(expected, 64)
 	if err != nil {
-		log.Errorf("verifyHits: Error in parsing expected value: %v, err: %v", expected, err)
+		log.Errorf("verifyInequality: Error in parsing expected value: %v, err: %v", expected, err)
 		return false, err
 	}
 	switch relation {
 	case "eq":
-		if hits == fltVal {
+		if actual == fltVal {
 			return true, nil
 		}
 	case "gt":
-		if hits > fltVal {
+		if actual > fltVal {
 			return true, nil
 		}
 	case "lt":
-		if hits < fltVal {
+		if actual < fltVal {
 			return true, nil
 		}
 	default:
-		log.Errorf("verifyHits: Invalid relation: %v", relation)
-		return false, fmt.Errorf("verifyHits: Invalid relation: %v", relation)
+		log.Errorf("verifyInequality: Invalid relation: %v", relation)
+		return false, fmt.Errorf("verifyInequality: Invalid relation: %v", relation)
 	}
 	return false, nil
 }

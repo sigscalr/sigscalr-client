@@ -78,9 +78,22 @@ Options:
 -i, --indexPrefix string   Index prefix to search (default "ind")
 -r, --bearerToken string   Bearer token of your org to ingest (default "")
 -n, --numIterations int    Number of iterations to send query suite (default 10)
--f, --filePath string      path to csv file containing query suite to send to server. Expects CSV of with [search text, startTime, endTime, indexName, relation, count, queryLanguage] in each row
+-f, --filePath string      path to csv file containing query suite to send to server. Expects CSV of with [search text, startTime, endTime, indexName, evaluation type, relation, count, queryLanguage] in each row
 -v  verbose                Output hits and elapsed time for each query
 -c  continuous             If true, ignores -n and -v and will continuously send queries to the destination and will log results
+```
+
+#### Notes
+When using a CSV file, the `evaluation type` parameter should be either:
+ - `total` to test the total number of returned rows
+ - A colon-separated list of strings to test the value returned by an aggregation function. The first element should be `group`, the second should be the aggregation to test, and the rest specify the keys to test for.
+For example, a valid CSV row is:
+```
+"min(latency) groupby city, http_method",now-1d,now,*,group:min(latency):Boston:POST,eq,5479,Pipe QL
+```
+To test an aggregation that doesn't have a groupby clause, use something like the following (notice the `*` after the last `:`):
+```
+min(latency),now-1d,now,*,group:min(latency):*,eq,110,Pipe QL
 ```
 
 ## Generating traces
