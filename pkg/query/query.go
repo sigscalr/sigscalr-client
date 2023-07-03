@@ -300,9 +300,10 @@ func getFreeTextSearch() []byte {
 	return raw
 }
 
-func sendSingleRequest(qType logsQueryTypes, client *http.Client, body []byte, url string, verbose bool) float64 {
+func sendSingleRequest(qType logsQueryTypes, client *http.Client, body []byte, url string, verbose bool, accessToken string) float64 {
 	req, err := http.NewRequest("POST", url, bytes.NewReader(body))
 	req.Header.Set("Content-Type", "application/json")
+	req.Header.Set("sigscalr_saas_access_token", accessToken)
 
 	if err != nil {
 		log.Fatalf("sendRequest: http.NewRequest ERROR: %v", err)
@@ -346,7 +347,7 @@ func logQuerySummary(numIterations int, res map[logsQueryTypes][]float64) {
 	}
 }
 
-func StartQuery(dest string, numIterations int, prefix string, continuous, verbose bool, bearerToken string) {
+func StartQuery(dest string, numIterations int, prefix string, continuous, verbose bool, accessToken string) {
 	client := http.DefaultClient
 	if numIterations == 0 && !continuous {
 		log.Fatalf("Iterations must be greater than 0")
@@ -356,33 +357,33 @@ func StartQuery(dest string, numIterations int, prefix string, continuous, verbo
 
 	log.Infof("Using destination URL %+s", requestStr)
 	if continuous {
-		runContinuousQueries(client, requestStr)
+		runContinuousQueries(client, requestStr, accessToken)
 	}
 
 	results := initResultMap(numIterations)
 	for i := 0; i < numIterations; i++ {
 		rawMatchAll := getMatchAllQuery()
-		time := sendSingleRequest(matchAll, client, rawMatchAll, requestStr, verbose)
+		time := sendSingleRequest(matchAll, client, rawMatchAll, requestStr, verbose, accessToken)
 		results[matchAll][i] = time
 
 		rawMultiple := getMatchMultipleQuery()
-		time = sendSingleRequest(matchMultiple, client, rawMultiple, requestStr, verbose)
+		time = sendSingleRequest(matchMultiple, client, rawMultiple, requestStr, verbose, accessToken)
 		results[matchMultiple][i] = time
 
 		rawRange := getRangeQuery()
-		time = sendSingleRequest(matchRange, client, rawRange, requestStr, verbose)
+		time = sendSingleRequest(matchRange, client, rawRange, requestStr, verbose, accessToken)
 		results[matchRange][i] = time
 
 		rawNeeldQuery := getNeedleInHaystackQuery()
-		time = sendSingleRequest(needleInHaystack, client, rawNeeldQuery, requestStr, verbose)
+		time = sendSingleRequest(needleInHaystack, client, rawNeeldQuery, requestStr, verbose, accessToken)
 		results[needleInHaystack][i] = time
 
 		sQuery := getSimpleFilter()
-		time = sendSingleRequest(keyValueQuery, client, sQuery, requestStr, verbose)
+		time = sendSingleRequest(keyValueQuery, client, sQuery, requestStr, verbose, accessToken)
 		results[keyValueQuery][i] = time
 
 		fQuery := getFreeTextSearch()
-		time = sendSingleRequest(freeText, client, fQuery, requestStr, verbose)
+		time = sendSingleRequest(freeText, client, fQuery, requestStr, verbose, accessToken)
 		results[freeText][i] = time
 	}
 
@@ -390,22 +391,22 @@ func StartQuery(dest string, numIterations int, prefix string, continuous, verbo
 }
 
 // this will never save time statistics per query and will always log results
-func runContinuousQueries(client *http.Client, requestStr string) {
+func runContinuousQueries(client *http.Client, requestStr string, accessToken string) {
 	for {
 		rawMatchAll := getMatchAllQuery()
-		_ = sendSingleRequest(matchAll, client, rawMatchAll, requestStr, true)
+		_ = sendSingleRequest(matchAll, client, rawMatchAll, requestStr, true, accessToken)
 
 		rawMultiple := getMatchMultipleQuery()
-		_ = sendSingleRequest(matchMultiple, client, rawMultiple, requestStr, true)
+		_ = sendSingleRequest(matchMultiple, client, rawMultiple, requestStr, true, accessToken)
 
 		rawRange := getRangeQuery()
-		_ = sendSingleRequest(matchRange, client, rawRange, requestStr, true)
+		_ = sendSingleRequest(matchRange, client, rawRange, requestStr, true, accessToken)
 
 		sQuery := getSimpleFilter()
-		_ = sendSingleRequest(keyValueQuery, client, sQuery, requestStr, true)
+		_ = sendSingleRequest(keyValueQuery, client, sQuery, requestStr, true, accessToken)
 
 		fQuery := getFreeTextSearch()
-		_ = sendSingleRequest(freeText, client, fQuery, requestStr, true)
+		_ = sendSingleRequest(freeText, client, fQuery, requestStr, true, accessToken)
 	}
 }
 
