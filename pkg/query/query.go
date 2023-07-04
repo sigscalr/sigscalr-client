@@ -303,7 +303,7 @@ func getFreeTextSearch() []byte {
 func sendSingleRequest(qType logsQueryTypes, client *http.Client, body []byte, url string, verbose bool, accessToken string) float64 {
 	req, err := http.NewRequest("POST", url, bytes.NewReader(body))
 	req.Header.Set("Content-Type", "application/json")
-	req.Header.Set("sigscalr_saas_access_token", accessToken)
+	req.Header.Set("Authorization", accessToken)
 
 	if err != nil {
 		log.Fatalf("sendRequest: http.NewRequest ERROR: %v", err)
