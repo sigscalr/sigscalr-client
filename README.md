@@ -40,7 +40,7 @@ $ go run main.go ingest metrics -d http://localhost:8081 -t 10_000  -m 5 -p 1
 Options:
 ```
   -m, --metrics int   Number of different metric names to send (default 1000)
-
+  -r, --bearerToken string   Bearer token of your org to ingest (default "")
   -b, --batchSize int        Batch size (default 100)
   -d, --dest string          Server URL.
   -p, --processCount int     Number of parallel process to ingest data from. (default 1)
@@ -60,7 +60,7 @@ Options:
 ```
 -d, --dest string          Destination URL. Client will append /api/query
 -n, --numIterations int    Number of iterations to send query suite (default 10)
-
+-r, --bearerToken string   Bearer token of your org to ingest (default "")
 -v  verbose                Output hits and elapsed time for each query
 -c  continuous             If true, ignores -n and -v and will continuously send queries to the destination and will log results
 ```

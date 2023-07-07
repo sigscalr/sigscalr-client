@@ -300,10 +300,16 @@ func getFreeTextSearch() []byte {
 	return raw
 }
 
-func sendSingleRequest(qType logsQueryTypes, client *http.Client, body []byte, url string, verbose bool) float64 {
+func sendSingleRequest(qType logsQueryTypes, client *http.Client, body []byte, url string, verbose bool, authToken string) float64 {
 	req, err := http.NewRequest("POST", url, bytes.NewReader(body))
+	if err != nil {
+		log.Fatalf("sendRequest: http.NewRequest ERROR: %v", err)
+	}
+	log.Printf("sendRequest: sending request to %s", url)
+	if authToken != "" {
+		req.Header.Set("Authorization", fmt.Sprintf("Bearer %s", authToken))
+	}
 	req.Header.Set("Content-Type", "application/json")
-
 	if err != nil {
 		log.Fatalf("sendRequest: http.NewRequest ERROR: %v", err)
 	}
@@ -356,33 +362,33 @@ func StartQuery(dest string, numIterations int, prefix string, continuous, verbo
 
 	log.Infof("Using destination URL %+s", requestStr)
 	if continuous {
-		runContinuousQueries(client, requestStr)
+		runContinuousQueries(client, requestStr, bearerToken)
 	}
 
 	results := initResultMap(numIterations)
 	for i := 0; i < numIterations; i++ {
 		rawMatchAll := getMatchAllQuery()
-		time := sendSingleRequest(matchAll, client, rawMatchAll, requestStr, verbose)
+		time := sendSingleRequest(matchAll, client, rawMatchAll, requestStr, verbose, bearerToken)
 		results[matchAll][i] = time
 
 		rawMultiple := getMatchMultipleQuery()
-		time = sendSingleRequest(matchMultiple, client, rawMultiple, requestStr, verbose)
+		time = sendSingleRequest(matchMultiple, client, rawMultiple, requestStr, verbose, bearerToken)
 		results[matchMultiple][i] = time
 
 		rawRange := getRangeQuery()
-		time = sendSingleRequest(matchRange, client, rawRange, requestStr, verbose)
+		time = sendSingleRequest(matchRange, client, rawRange, requestStr, verbose, bearerToken)
 		results[matchRange][i] = time
 
 		rawNeeldQuery := getNeedleInHaystackQuery()
-		time = sendSingleRequest(needleInHaystack, client, rawNeeldQuery, requestStr, verbose)
+		time = sendSingleRequest(needleInHaystack, client, rawNeeldQuery, requestStr, verbose, bearerToken)
 		results[needleInHaystack][i] = time
 
 		sQuery := getSimpleFilter()
-		time = sendSingleRequest(keyValueQuery, client, sQuery, requestStr, verbose)
+		time = sendSingleRequest(keyValueQuery, client, sQuery, requestStr, verbose, bearerToken)
 		results[keyValueQuery][i] = time
 
 		fQuery := getFreeTextSearch()
-		time = sendSingleRequest(freeText, client, fQuery, requestStr, verbose)
+		time = sendSingleRequest(freeText, client, fQuery, requestStr, verbose, bearerToken)
 		results[freeText][i] = time
 	}
 
@@ -390,22 +396,22 @@ func StartQuery(dest string, numIterations int, prefix string, continuous, verbo
 }
 
 // this will never save time statistics per query and will always log results
-func runContinuousQueries(client *http.Client, requestStr string) {
+func runContinuousQueries(client *http.Client, requestStr string, bearerToken string) {
 	for {
 		rawMatchAll := getMatchAllQuery()
-		_ = sendSingleRequest(matchAll, client, rawMatchAll, requestStr, true)
+		_ = sendSingleRequest(matchAll, client, rawMatchAll, requestStr, true, bearerToken)
 
 		rawMultiple := getMatchMultipleQuery()
-		_ = sendSingleRequest(matchMultiple, client, rawMultiple, requestStr, true)
+		_ = sendSingleRequest(matchMultiple, client, rawMultiple, requestStr, true, bearerToken)
 
 		rawRange := getRangeQuery()
-		_ = sendSingleRequest(matchRange, client, rawRange, requestStr, true)
+		_ = sendSingleRequest(matchRange, client, rawRange, requestStr, true, bearerToken)
 
 		sQuery := getSimpleFilter()
-		_ = sendSingleRequest(keyValueQuery, client, sQuery, requestStr, true)
+		_ = sendSingleRequest(keyValueQuery, client, sQuery, requestStr, true, bearerToken)
 
 		fQuery := getFreeTextSearch()
-		_ = sendSingleRequest(freeText, client, fQuery, requestStr, true)
+		_ = sendSingleRequest(freeText, client, fQuery, requestStr, true, bearerToken)
 	}
 }
 
