@@ -314,7 +314,7 @@ func getRandomQuery() []byte {
 	time1day := time - (1 * 24 * 60 * 60 * 1000)
 
 	must := make([]interface{}, 0)
-	mustNot := make([]interface{}, 0)
+	// mustNot := make([]interface{}, 0)
 	should := make([]interface{}, 0)
 
 	numConditions := faker.Number(1, 5)
@@ -404,12 +404,12 @@ func getRandomQuery() []byte {
 			}
 		}
 
-		switch faker.Number(0, 2) {
+		switch faker.Number(0, 1) {
 		case 0:
 			must = append(must, condition)
+		// case 1:
+		// 	mustNot = append(mustNot, condition)
 		case 1:
-			mustNot = append(mustNot, condition)
-		case 2:
 			should = append(should, condition)
 		}
 	}
@@ -418,7 +418,7 @@ func getRandomQuery() []byte {
 		"query": map[string]interface{}{
 			"bool": map[string]interface{}{
 				"must":   must,
-				"must_not": mustNot,
+				// "must_not": mustNot,
 				"should": should,
 				"filter": []interface{}{
 					map[string]interface{}{
