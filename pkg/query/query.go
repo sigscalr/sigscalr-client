@@ -14,6 +14,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/brianvoe/gofakeit/v6"
 	"github.com/fasthttp/websocket"
 	"github.com/montanaflynn/stats"
 
@@ -29,6 +30,7 @@ const (
 	needleInHaystack
 	keyValueQuery
 	freeText
+	random
 )
 
 func (q logsQueryTypes) String() string {
@@ -45,6 +47,8 @@ func (q logsQueryTypes) String() string {
 		return "single key=value"
 	case freeText:
 		return "free text"
+	case random:
+		return "random"
 	default:
 		return "UNKNOWN"
 	}
@@ -300,6 +304,145 @@ func getFreeTextSearch() []byte {
 	return raw
 }
 
+// This should only be used when data has been ingested dynamically, because
+// this creates queries by using those columns.
+// The resulting query may be a single key=value (or an inequality for numeric
+// columns), or a compound queries.
+func getRandomQuery() []byte {
+	faker := gofakeit.NewUnlocked(time.Now().UnixNano())
+	time := time.Now().UnixMilli()
+	time1day := time - (1 * 24 * 60 * 60 * 1000)
+
+	must := make([]interface{}, 0)
+	mustNot := make([]interface{}, 0)
+	should := make([]interface{}, 0)
+
+	numConditions := faker.Number(1, 5)
+	for i := 0; i < numConditions; i++ {
+		// Decide which list to add this condition to.
+		var condition map[string]interface{}
+
+		// Create the condition. See randomizeBody() in reader.go for how
+		// column values are generated.
+		var column string
+		if faker.Number(0, 12) < 3 {
+			// Query a numeric column.
+			var inequality string
+			if faker.Bool() {
+				inequality = "gte"
+			} else {
+				inequality = "lte"
+			}
+
+			switch faker.Number(0, 2) {
+			case 0:
+				column = "latency"
+				condition = map[string]interface{}{
+					"range": map[string]interface{}{
+						column: map[string]interface{}{
+							inequality: faker.Number(0, 10_000_000),
+						},
+					},
+				}
+			case 1:
+				column = "latitude"
+				condition = map[string]interface{}{
+					"range": map[string]interface{}{
+						column: map[string]interface{}{
+							inequality: faker.Person().Address.Latitude,
+						},
+					},
+				}
+			case 2:
+				column = "longitude"
+				condition = map[string]interface{}{
+					"range": map[string]interface{}{
+						column: map[string]interface{}{
+							inequality: faker.Person().Address.Longitude,
+						},
+					},
+				}
+			}
+		} else {
+			// Query a string column.
+			var value string
+			switch faker.Number(0, 8) {
+			case 0:
+				column = "batch"
+				value = "batch-" + fmt.Sprintf("%v", faker.Number(1, 1000))
+			case 1:
+				column = "city"
+				value = faker.Person().Address.City
+			case 2:
+				column = "country"
+				value = faker.Person().Address.Country
+			case 3:
+				column = "gender"
+				value = faker.Person().Gender
+			case 4:
+				column = "group"
+				value = "group " + fmt.Sprintf("%v", faker.Number(0, 2))
+			case 5:
+				column = "http_method"
+				value = faker.HTTPMethod()
+			case 6:
+				column = "state"
+				value = faker.Person().Address.State
+			case 7:
+				column = "user_color"
+				value = faker.Color()
+			case 8:
+				column = "weekday"
+				value = faker.WeekDay()
+			}
+
+			// Set the condition.
+			condition = map[string]interface{}{
+				"match": map[string]interface{}{
+					column: value,
+				},
+			}
+		}
+
+		switch faker.Number(0, 2) {
+		case 0:
+			must = append(must, condition)
+		case 1:
+			mustNot = append(mustNot, condition)
+		case 2:
+			should = append(should, condition)
+		}
+	}
+
+	var matchAllQuery = map[string]interface{}{
+		"query": map[string]interface{}{
+			"bool": map[string]interface{}{
+				"must":   must,
+				"must_not": mustNot,
+				"should": should,
+				"filter": []interface{}{
+					map[string]interface{}{
+						"range": map[string]interface{}{
+							"timestamp": map[string]interface{}{
+								"gte":    time1day,
+								"lte":    time,
+								"format": "epoch_millis",
+							},
+						},
+					},
+				},
+			},
+		},
+	}
+
+	raw, err := json.Marshal(matchAllQuery)
+	if err != nil {
+		log.Fatalf("error marshalling query: %+v", err)
+	}
+	log.Errorf("created random query: %v", string(raw))
+	return raw
+}
+
 func sendSingleRequest(qType logsQueryTypes, client *http.Client, body []byte, url string, verbose bool, authToken string) float64 {
 	req, err := http.NewRequest("POST", url, bytes.NewReader(body))
 	if err != nil {
@@ -338,6 +481,7 @@ func initResultMap(numIterations int) map[logsQueryTypes][]float64 {
 	results[needleInHaystack] = make([]float64, numIterations)
 	results[keyValueQuery] = make([]float64, numIterations)
 	results[freeText] = make([]float64, numIterations)
+	results[random] = make([]float64, numIterations)
 	return results
 }
 
@@ -367,29 +511,33 @@ func StartQuery(dest string, numIterations int, prefix string, continuous, verbo
 
 	results := initResultMap(numIterations)
 	for i := 0; i < numIterations; i++ {
-		rawMatchAll := getMatchAllQuery()
-		time := sendSingleRequest(matchAll, client, rawMatchAll, requestStr, verbose, bearerToken)
-		results[matchAll][i] = time
+		// rawMatchAll := getMatchAllQuery()
+		// time := sendSingleRequest(matchAll, client, rawMatchAll, requestStr, verbose, bearerToken)
+		// results[matchAll][i] = time
 
-		rawMultiple := getMatchMultipleQuery()
-		time = sendSingleRequest(matchMultiple, client, rawMultiple, requestStr, verbose, bearerToken)
-		results[matchMultiple][i] = time
+		// rawMultiple := getMatchMultipleQuery()
+		// time = sendSingleRequest(matchMultiple, client, rawMultiple, requestStr, verbose, bearerToken)
+		// results[matchMultiple][i] = time
 
-		rawRange := getRangeQuery()
-		time = sendSingleRequest(matchRange, client, rawRange, requestStr, verbose, bearerToken)
-		results[matchRange][i] = time
+		// rawRange := getRangeQuery()
+		// time = sendSingleRequest(matchRange, client, rawRange, requestStr, verbose, bearerToken)
+		// results[matchRange][i] = time
 
-		rawNeeldQuery := getNeedleInHaystackQuery()
-		time = sendSingleRequest(needleInHaystack, client, rawNeeldQuery, requestStr, verbose, bearerToken)
-		results[needleInHaystack][i] = time
+		// rawNeeldQuery := getNeedleInHaystackQuery()
+		// time = sendSingleRequest(needleInHaystack, client, rawNeeldQuery, requestStr, verbose, bearerToken)
+		// results[needleInHaystack][i] = time
 
-		sQuery := getSimpleFilter()
-		time = sendSingleRequest(keyValueQuery, client, sQuery, requestStr, verbose, bearerToken)
-		results[keyValueQuery][i] = time
+		// sQuery := getSimpleFilter()
+		// time = sendSingleRequest(keyValueQuery, client, sQuery, requestStr, verbose, bearerToken)
+		// results[keyValueQuery][i] = time
 
-		fQuery := getFreeTextSearch()
-		time = sendSingleRequest(freeText, client, fQuery, requestStr, verbose, bearerToken)
-		results[freeText][i] = time
+		// fQuery := getFreeTextSearch()
+		// time = sendSingleRequest(freeText, client, fQuery, requestStr, verbose, bearerToken)
+		// results[freeText][i] = time
+
+		rQuery := getRandomQuery()
+		time := sendSingleRequest(random, client, rQuery, requestStr, verbose, bearerToken)
+		results[random][i] = time
 	}
 
 	logQuerySummary(numIterations, results)
