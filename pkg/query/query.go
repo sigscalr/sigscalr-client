@@ -304,118 +304,72 @@ func getFreeTextSearch() []byte {
 	return raw
 }
 
-// This should only be used when data has been ingested dynamically, because
-// this creates queries by using those columns.
-// The resulting query may be a single key=value (or an inequality for numeric
-// columns), or a compound queries.
+// This generates queries based on columns/values that are setup when ingesting
+// data dynamically, so running this function may not be useful when data was
+// ingested differently.
+// The resulting query has one or more key=value conditions for string fields.
 func getRandomQuery() []byte {
 	faker := gofakeit.NewUnlocked(time.Now().UnixNano())
 	time := time.Now().UnixMilli()
-	time1day := time - (7 * 24 * 60 * 60 * 1000)
+	time1day := time - (1 * 24 * 60 * 60 * 1000)
 
 	must := make([]interface{}, 0)
-	// mustNot := make([]interface{}, 0)
 	should := make([]interface{}, 0)
 	used_string_column := [8]bool{}
 
 	numConditions := faker.Number(1, 5)
 	for i := 0; i < numConditions; i++ {
-		// Decide which list to add this condition to.
-		var condition map[string]interface{}
-
 		// Create the condition. See randomizeBody() in reader.go for how
 		// column values are generated.
+		var condition map[string]interface{}
 		var column string
-//		if faker.Number(0, 12) < 3 {
-		if false {
-			// Query a numeric column.
-			var inequality string
-			if faker.Bool() {
-				inequality = "gte"
-			} else {
-				inequality = "lte"
-			}
+		var value string
 
-			switch faker.Number(0, 2) {
-			case 0:
-				column = "latency"
-				condition = map[string]interface{}{
-					"range": map[string]interface{}{
-						column: map[string]interface{}{
-							inequality: faker.Number(0, 10_000_000),
-						},
-					},
-				}
-			case 1:
-				column = "latitude"
-				condition = map[string]interface{}{
-					"range": map[string]interface{}{
-						column: map[string]interface{}{
-							inequality: faker.Person().Address.Latitude,
-						},
-					},
-				}
-			case 2:
-				column = "longitude"
-				condition = map[string]interface{}{
-					"range": map[string]interface{}{
-						column: map[string]interface{}{
-							inequality: faker.Person().Address.Longitude,
-						},
-					},
-				}
-			}
-		} else {
-			// Query a string column.
-			var value string
+		// Choose a column we haven't used in this query yet.
+		colInd := faker.Number(0, 7)
+		for used_string_column[colInd] {
+			colInd = faker.Number(0, 7)
+		}
+		used_string_column[colInd] = true
 
-			// Choose a column we haven't used in this query yet.
-			colInd := faker.Number(0, 7)
-			for ; used_string_column[colInd] ; {
-				colInd = faker.Number(0, 7)
-			}
-			used_string_column[colInd] = true
-
-			switch colInd {
-			case 0:
-				column = "batch"
-				value = "batch-" + fmt.Sprintf("%v", faker.Number(1, 1000))
-			case 1:
-				column = "city"
-				value = faker.Person().Address.City
-			case 2:
-				column = "country"
-				value = faker.Person().Address.Country
-			case 3:
-				column = "gender"
-				value = faker.Person().Gender
-			case 4:
-				column = "http_method"
-				value = faker.HTTPMethod()
-			case 5:
-				column = "state"
-				value = faker.Person().Address.State
-			case 6:
-				column = "user_color"
-				value = faker.Color()
-			case 7:
-				column = "weekday"
-				value = faker.WeekDay()
-			}
-
-			// Set the condition.
-			condition = map[string]interface{}{
-				"match": map[string]interface{}{
-					column: value,
-				},
-			}
+		switch colInd {
+		case 0:
+			column = "batch"
+			value = "batch-" + fmt.Sprintf("%v", faker.Number(1, 1000))
+		case 1:
+			column = "city"
+			value = faker.Person().Address.City
+		case 2:
+			column = "country"
+			value = faker.Person().Address.Country
+		case 3:
+			column = "gender"
+			value = faker.Person().Gender
+		case 4:
+			column = "http_method"
+			value = faker.HTTPMethod()
+		case 5:
+			column = "state"
+			value = faker.Person().Address.State
+		case 6:
+			column = "user_color"
+			value = faker.Color()
+		case 7:
+			column = "weekday"
+			value = faker.WeekDay()
 		}
 
+		// Set the condition.
+		condition = map[string]interface{}{
+			"match": map[string]interface{}{
+				column: value,
+			},
+		}
+
+		// Decide which list to add this condition to.
 		switch faker.Number(0, 1) {
 		case 0:
 			must = append(must, condition)
-		// case 1:
-		// 	mustNot = append(mustNot, condition)
 		case 1:
 			should = append(should, condition)
 		}
@@ -424,8 +378,7 @@ func getRandomQuery() []byte {
 	var matchAllQuery = map[string]interface{}{
 		"query": map[string]interface{}{
 			"bool": map[string]interface{}{
-				"must":   must,
-				// "must_not": mustNot,
+				"must": must,
 				"should": should,
 				"filter": []interface{}{
 					map[string]interface{}{
@@ -446,7 +399,6 @@ func getRandomQuery() []byte {
 	if err != nil {
 		log.Fatalf("error marshalling query: %+v", err)
 	}
-//	log.Errorf("created random query: %v", string(raw))
 	return raw
 }
 
@@ -503,7 +455,7 @@ func logQuerySummary(numIterations int, res map[logsQueryTypes][]float64) {
 	}
 }
 
-func StartQuery(dest string, numIterations int, prefix string, continuous, verbose bool, bearerToken string) {
+func StartQuery(dest string, numIterations int, prefix string, continuous bool, verbose bool, randomQueries bool, bearerToken string) {
 	client := http.DefaultClient
 	if numIterations == 0 && !continuous {
 		log.Fatalf("Iterations must be greater than 0")
@@ -518,33 +470,35 @@ func StartQuery(dest string, numIterations int, prefix string, continuous, verbo
 
 	results := initResultMap(numIterations)
 	for i := 0; i < numIterations; i++ {
-		// rawMatchAll := getMatchAllQuery()
-		// time := sendSingleRequest(matchAll, client, rawMatchAll, requestStr, verbose, bearerToken)
-		// results[matchAll][i] = time
+		if randomQueries {
+			rQuery := getRandomQuery()
+			time := sendSingleRequest(random, client, rQuery, requestStr, verbose, bearerToken)
+			results[random][i] = time
+		} else {
+			rawMatchAll := getMatchAllQuery()
+			time := sendSingleRequest(matchAll, client, rawMatchAll, requestStr, verbose, bearerToken)
+			results[matchAll][i] = time
 
-		// rawMultiple := getMatchMultipleQuery()
-		// time = sendSingleRequest(matchMultiple, client, rawMultiple, requestStr, verbose, bearerToken)
-		// results[matchMultiple][i] = time
+			rawMultiple := getMatchMultipleQuery()
+			time = sendSingleRequest(matchMultiple, client, rawMultiple, requestStr, verbose, bearerToken)
+			results[matchMultiple][i] = time
 
-		// rawRange := getRangeQuery()
-		// time = sendSingleRequest(matchRange, client, rawRange, requestStr, verbose, bearerToken)
-		// results[matchRange][i] = time
+			rawRange := getRangeQuery()
+			time = sendSingleRequest(matchRange, client, rawRange, requestStr, verbose, bearerToken)
+			results[matchRange][i] = time
 
-		// rawNeeldQuery := getNeedleInHaystackQuery()
-		// time = sendSingleRequest(needleInHaystack, client, rawNeeldQuery, requestStr, verbose, bearerToken)
-		// results[needleInHaystack][i] = time
+			rawNeeldQuery := getNeedleInHaystackQuery()
+			time = sendSingleRequest(needleInHaystack, client, rawNeeldQuery, requestStr, verbose, bearerToken)
+			results[needleInHaystack][i] = time
 
-		// sQuery := getSimpleFilter()
-		// time = sendSingleRequest(keyValueQuery, client, sQuery, requestStr, verbose, bearerToken)
-		// results[keyValueQuery][i] = time
+			sQuery := getSimpleFilter()
+			time = sendSingleRequest(keyValueQuery, client, sQuery, requestStr, verbose, bearerToken)
+			results[keyValueQuery][i] = time
 
-		// fQuery := getFreeTextSearch()
-		// time = sendSingleRequest(freeText, client, fQuery, requestStr, verbose, bearerToken)
-		// results[freeText][i] = time
-
-		rQuery := getRandomQuery()
-		time := sendSingleRequest(random, client, rQuery, requestStr, verbose, bearerToken)
-		results[random][i] = time
+			fQuery := getFreeTextSearch()
+			time = sendSingleRequest(freeText, client, fQuery, requestStr, verbose, bearerToken)
+			results[freeText][i] = time
+		}
 	}
 
 	logQuerySummary(numIterations, results)
