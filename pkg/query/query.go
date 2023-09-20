@@ -311,11 +311,12 @@ func getFreeTextSearch() []byte {
 func getRandomQuery() []byte {
 	faker := gofakeit.NewUnlocked(time.Now().UnixNano())
 	time := time.Now().UnixMilli()
-	time1day := time - (1 * 24 * 60 * 60 * 1000)
+	time1day := time - (7 * 24 * 60 * 60 * 1000)
 
 	must := make([]interface{}, 0)
 	// mustNot := make([]interface{}, 0)
 	should := make([]interface{}, 0)
+	used_string_column := [8]bool{}
 
 	numConditions := faker.Number(1, 5)
 	for i := 0; i < numConditions; i++ {
@@ -325,7 +326,8 @@ func getRandomQuery() []byte {
 		// Create the condition. See randomizeBody() in reader.go for how
 		// column values are generated.
 		var column string
-		if faker.Number(0, 12) < 3 {
+//		if faker.Number(0, 12) < 3 {
+		if false {
 			// Query a numeric column.
 			var inequality string
 			if faker.Bool() {
@@ -366,7 +368,15 @@ func getRandomQuery() []byte {
 		} else {
 			// Query a string column.
 			var value string
-			switch faker.Number(0, 8) {
+
+			// Choose a column we haven't used in this query yet.
+			colInd := faker.Number(0, 7)
+			for ; used_string_column[colInd] ; {
+				colInd = faker.Number(0, 7)
+			}
+			used_string_column[colInd] = true
+
+			switch colInd {
 			case 0:
 				column = "batch"
 				value = "batch-" + fmt.Sprintf("%v", faker.Number(1, 1000))
@@ -380,18 +390,15 @@ func getRandomQuery() []byte {
 				column = "gender"
 				value = faker.Person().Gender
 			case 4:
-				column = "group"
-				value = "group " + fmt.Sprintf("%v", faker.Number(0, 2))
-			case 5:
 				column = "http_method"
 				value = faker.HTTPMethod()
-			case 6:
+			case 5:
 				column = "state"
 				value = faker.Person().Address.State
-			case 7:
+			case 6:
 				column = "user_color"
 				value = faker.Color()
-			case 8:
+			case 7:
 				column = "weekday"
 				value = faker.WeekDay()
 			}
@@ -439,7 +446,7 @@ func getRandomQuery() []byte {
 	if err != nil {
 		log.Fatalf("error marshalling query: %+v", err)
 	}
-	log.Errorf("created random query: %v", string(raw))
+//	log.Errorf("created random query: %v", string(raw))
 	return raw
 }
 
