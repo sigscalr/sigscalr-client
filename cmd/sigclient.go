@@ -83,6 +83,7 @@ var esQueryCmd = &cobra.Command{
 		continuous, _ := cmd.Flags().GetBool("continuous")
 		indexPrefix, _ := cmd.Flags().GetString("indexPrefix")
 		filepath, _ := cmd.Flags().GetString("filePath")
+		randomQueries, _ := cmd.Flags().GetBool("randomQueries")
 		bearerToken, _ := cmd.Flags().GetString("bearerToken")
 
 		log.Infof("dest : %+v\n", dest)
@@ -91,11 +92,12 @@ var esQueryCmd = &cobra.Command{
 		log.Infof("verbose : %+v\n", verbose)
 		log.Infof("continuous : %+v\n", continuous)
 		log.Infof("filePath : %+v\n", filepath)
+		log.Infof("randomQueries: %+v\n", randomQueries)
 		log.Infof("bearerToken : %+v\n", bearerToken)
 		if filepath != "" {
 			query.RunQueryFromFile(dest, numIterations, indexPrefix, continuous, verbose, filepath, bearerToken)
 		} else {
-			query.StartQuery(dest, numIterations, indexPrefix, continuous, verbose, bearerToken)
+			query.StartQuery(dest, numIterations, indexPrefix, continuous, verbose, randomQueries, bearerToken)
 		}
 	},
 }
@@ -187,6 +189,7 @@ func init() {
 	queryCmd.PersistentFlags().BoolP("continuous", "c", false, "Continuous querying will ignore -c and -v and will continuously send queries to the destination")
 	queryCmd.PersistentFlags().BoolP("validateMetricsOutput", "y", false, "check if metric querries return any results")
 	queryCmd.PersistentFlags().StringP("filePath", "f", "", "filepath to csv file to use to run queries from")
+	queryCmd.PersistentFlags().BoolP("randomQueries", "", false, "generate random queries")
 
 	queryCmd.AddCommand(esQueryCmd)
 	queryCmd.AddCommand(metricsQueryCmd)
