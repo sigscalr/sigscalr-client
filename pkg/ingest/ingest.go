@@ -25,6 +25,7 @@ const (
 	_ IngestType = iota
 	ESBulk
 	OpenTSDB
+	CreateLogs
 )
 
 func (q IngestType) String() string {
@@ -33,6 +34,8 @@ func (q IngestType) String() string {
 		return "ES Bulk"
 	case OpenTSDB:
 		return "OTSDB"
+	case CreateLogs:
+		return "CreateLogs"
 	default:
 		return "UNKNOWN"
 	}
@@ -54,6 +57,8 @@ func sendRequest(iType IngestType, client *http.Client, lines []byte, url string
 		requestStr = url + "/_bulk"
 	case OpenTSDB:
 		requestStr = url + "/api/put"
+	case CreateLogs:
+		requestStr = url + "/_bulk"
 	default:
 		log.Fatalf("unknown ingest type %+v", iType)
 		return fmt.Errorf("unknown ingest type %+v", iType)
@@ -85,12 +90,15 @@ func sendRequest(iType IngestType, client *http.Client, lines []byte, url string
 
 func generateBody(iType IngestType, recs int, i int, rdr utils.Generator,
 	actLines []string, bb *bytebufferpool.ByteBuffer) ([]byte, error) {
+	fmt.Printf("generateBody called \n")
 	switch iType {
 	case ESBulk:
 		actionLine := actLines[i%len(actLines)]
 		return generateESBody(recs, actionLine, rdr, bb)
 	case OpenTSDB:
 		return generateOpenTSDBBody(recs, rdr)
+	case CreateLogs:
+		return generateCreateLogsBody(recs, rdr)
 	default:
 		log.Fatalf("Unsupported ingest type %s", iType.String())
 	}
@@ -117,6 +125,25 @@ func generateOpenTSDBBody(recs int, rdr utils.Generator) ([]byte, error) {
 	finalPayLoad := make([]interface{}, recs)
 	for i := 0; i < recs; i++ {
 		currPayload, err := rdr.GetRawLog()
+		if err != nil {
+			return nil, err
+		}
+		finalPayLoad[i] = currPayload
+	}
+	retVal, err := json.Marshal(finalPayLoad)
+	if err != nil {
+		return nil, err
+	}
+	return retVal, nil
+}
+
+func generateCreateLogsBody(recs int, rdr utils.Generator) ([]byte, error) {
+	fmt.Printf("generateCreateLogsBody called \n")
+	// fmt.Println(recs)
+
+	finalPayLoad := make([]interface{}, recs)
+	for i := 0; i < recs; i++ {
+		currPayload, err := rdr.CreateLogs()
 		if err != nil {
 			return nil, err
 		}
@@ -217,13 +244,13 @@ func getReaderFromArgs(iType IngestType, nummetrics int, gentype, str string, ts
 		err := rdr.Init(str)
 		return rdr, err
 	}
-
 	var rdr utils.Generator
 	switch gentype {
 	case "", "static":
 		log.Infof("Initializing static reader")
 		rdr = utils.InitStaticGenerator(ts)
 	case "dynamic-user":
+		fmt.Println("Hey hello from here")
 		seed := int64(fastrand.Uint32n(1_000))
 		rdr = utils.InitDynamicUserGenerator(ts, seed)
 	case "file":
@@ -233,6 +260,10 @@ func getReaderFromArgs(iType IngestType, nummetrics int, gentype, str string, ts
 		log.Infof("Initializing benchmark reader")
 		seed := int64(1001)
 		rdr = utils.InitDynamicUserGenerator(ts, seed)
+	case "k8s":
+		log.Infof("Initializing k8s reader")
+		seed := int64(1001)
+		rdr = utils.InitK8sGenerator(ts, seed)
 	default:
 		return nil, fmt.Errorf("unsupported reader type %s. Options=[static,dynamic-user,file,benchmark]", gentype)
 	}
@@ -242,6 +273,7 @@ func getReaderFromArgs(iType IngestType, nummetrics int, gentype, str string, ts
 
 func StartIngestion(iType IngestType, generatorType, dataFile string, totalEvents int, continuous bool,
 	batchSize int, url string, indexPrefix string, indexName string, numIndices, processCount int, addTs bool, nMetrics int, bearerToken string) {
+	log.Printf("hello from start ingestion")
 	log.Printf("Starting ingestion at %+v for %+v", url, iType.String())
 	var wg sync.WaitGroup
 	totalEventsPerProcess := totalEvents / processCount
@@ -249,10 +281,11 @@ func StartIngestion(iType IngestType, generatorType, dataFile string, totalEvent
 	ticker := time.NewTicker(60 * time.Second)
 	done := make(chan bool)
 	totalSent := uint64(0)
-
+	fmt.Println(processCount)
 	for i := 0; i < processCount; i++ {
 		wg.Add(1)
 		reader, err := getReaderFromArgs(iType, nMetrics, generatorType, dataFile, addTs)
+		fmt.Println(reader)
 		if err != nil {
 			log.Fatalf("StartIngestion: failed to initalize reader! %+v", err)
 		}

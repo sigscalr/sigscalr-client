@@ -6,6 +6,8 @@ import (
 	"fmt"
 	"math/rand"
 	"os"
+	"regexp"
+	"strings"
 	"sync"
 	"time"
 	"unsafe"
@@ -22,6 +24,7 @@ type Generator interface {
 	Init(fName ...string) error
 	GetLogLine() ([]byte, error)
 	GetRawLog() (map[string]interface{}, error)
+	CreateLogs() (map[string]interface{}, error)
 }
 
 // file reader loads chunks from the file. Each request will get a sequential entry from the chunk.
@@ -46,6 +49,13 @@ type StaticGenerator struct {
 	logLine []byte
 	ts      bool
 }
+type K8sGenerator struct {
+	baseBody  map[string]interface{}
+	tNowEpoch uint64
+	ts        bool
+	faker     *gofakeit.Faker
+	seed      int64
+}
 
 type DynamicUserGenerator struct {
 	baseBody  map[string]interface{}
@@ -62,6 +72,14 @@ func InitDynamicUserGenerator(ts bool, seed int64) *DynamicUserGenerator {
 	}
 }
 
+func InitK8sGenerator(ts bool, seed int64) *K8sGenerator {
+	fmt.Println("line 75 reader.go, InitK8sGenerator")
+	return &K8sGenerator{
+		ts:   ts,
+		seed: seed,
+	}
+}
+
 func InitStaticGenerator(ts bool) *StaticGenerator {
 	return &StaticGenerator{
 		ts: ts,
@@ -70,6 +88,96 @@ func InitStaticGenerator(ts bool) *StaticGenerator {
 
 func InitFileReader() *FileReader {
 	return &FileReader{}
+}
+
+type msg struct {
+	Msg        string
+	City       string
+	Country    string
+	Latency    int
+	Batch      string
+	FirstName  string
+	LastName   string
+	Gender     string
+	Hostname   string
+	HTTPStatus int
+	Hobby      string
+}
+
+var logMessages = []string{
+	"%s for DRA plugin %q failed. Plugin returned an empty list for supported versions",
+	"%s for DRA plugin %q failed. None of the versions specified %q are supported. err=%v",
+	"Unable to write event '%#v' (retry limit exceeded!)",
+	"Unable to start event watcher: '%v' (will not retry!)",
+	"Could not construct reference to: '%#v' due to: '%v'. Will not report event: '%v' '%v' '%v'",
+}
+
+func createK8sBody(logEntry *msg, f *gofakeit.Faker) *msg {
+	// f.Seed(time.Now().UnixNano())
+	logEntry.Batch = fmt.Sprintf("batch-%d", f.Number(1, 1000))
+	logEntry.FirstName = f.FirstName()
+	logEntry.LastName = f.LastName()
+	logEntry.Gender = f.Gender()
+	logEntry.Hostname = f.IPv4Address()
+	logEntry.HTTPStatus = f.Number(200, 500)
+	logEntry.City = f.City()
+	logEntry.Country = f.Country()
+	logEntry.Latency = f.Number(0, 100)
+	logEntry.Hobby = f.Hobby()
+	return logEntry
+
+}
+func randomizeLogEntry(f *gofakeit.Faker, m map[string]interface{}) msg {
+	randomTemplate := logMessages[gofakeit.Number(0, len(logMessages)-1)]
+	logEntry := msg{}
+	createdBody := createK8sBody(&logEntry, f)
+	// logEntry.Msg = createdBody
+	m["batch"] = createdBody.Batch
+	m["firstName"] = createdBody.FirstName
+	m["lastName"] = createdBody.LastName
+	m["gender"] = createdBody.Gender
+	m["hostname"] = createdBody.Hostname
+	m["httpStatus"] = createdBody.HTTPStatus
+	m["city"] = createdBody.City
+	m["country"] = createdBody.Country
+	m["latency"] = createdBody.Latency
+	m["hobby"] = createdBody.Hobby
+
+	logEntry.Msg = replacePlaceholders(randomTemplate)
+	fmt.Println("--------------------------------  ")
+	fmt.Println(createdBody.Batch)
+	return logEntry
+}
+
+func replacePlaceholders(template string) string {
+
+	placeholderRegex := regexp.MustCompile(`(['"]%[^\s%]+|(%[^\s%]+))`)
+
+	matches := placeholderRegex.FindAllString(template, -1)
+
+	for _, match := range matches {
+		fmt.Println(match)
+		placeholderType := match
+		placeholderType = strings.Replace(placeholderType, "%", "", 1)
+		placeholderType = strings.Replace(placeholderType, "'", "", 2)
+		var replacement string
+
+		switch placeholderType {
+		case "s":
+			replacement = gofakeit.Word()
+		case "q":
+			replacement = gofakeit.BuzzWord()
+		case "v":
+			replacement = fmt.Sprintf("%d", gofakeit.Number(1, 100))
+		default:
+
+			replacement = "UNKNOWN"
+		}
+
+		template = strings.ReplaceAll(template, match, replacement)
+	}
+
+	return template
 }
 
 func randomizeBody(f *gofakeit.Faker, m map[string]interface{}, addts bool) {
@@ -121,6 +229,29 @@ func (r *DynamicUserGenerator) generateRandomBody() {
 	randomizeBody(r.faker, r.baseBody, r.ts)
 }
 
+func (r *K8sGenerator) createK8sBody() {
+
+	randomizeLogEntry(r.faker, r.baseBody)
+
+}
+
+// not sure
+func (r *K8sGenerator) Init(fName ...string) error {
+	gofakeit.Seed(r.seed)
+	r.faker = gofakeit.NewUnlocked(r.seed)
+	rand.Seed(r.seed)
+	r.baseBody = make(map[string]interface{})
+	r.createK8sBody()
+	body, err := json.Marshal(r.baseBody)
+	if err != nil {
+		return err
+	}
+	stringSize := len(body) + int(unsafe.Sizeof(body))
+	log.Infof("Size of a random log line is %+v bytes", stringSize)
+	r.tNowEpoch = uint64(time.Now().UnixMilli()) - 80*24*3600*1000
+	return nil
+}
+
 func (r *DynamicUserGenerator) Init(fName ...string) error {
 	gofakeit.Seed(r.seed)
 	r.faker = gofakeit.NewUnlocked(r.seed)
@@ -137,6 +268,11 @@ func (r *DynamicUserGenerator) Init(fName ...string) error {
 	return nil
 }
 
+func (r *K8sGenerator) GetLogLine() ([]byte, error) {
+	r.createK8sBody()
+	return json.Marshal(r.baseBody)
+}
+
 func (r *DynamicUserGenerator) GetLogLine() ([]byte, error) {
 	r.generateRandomBody()
 	return json.Marshal(r.baseBody)
@@ -144,6 +280,23 @@ func (r *DynamicUserGenerator) GetLogLine() ([]byte, error) {
 
 func (r *DynamicUserGenerator) GetRawLog() (map[string]interface{}, error) {
 	r.generateRandomBody()
+	return r.baseBody, nil
+}
+
+func (r *DynamicUserGenerator) CreateLogs() (map[string]interface{}, error) {
+	fmt.Println("Dynamic-CL")
+	r.generateRandomBody()
+	return r.baseBody, nil
+}
+
+func (r *K8sGenerator) GetRawLog() (map[string]interface{}, error) {
+	r.createK8sBody()
+	return r.baseBody, nil
+}
+
+func (r *K8sGenerator) CreateLogs() (map[string]interface{}, error) {
+	fmt.Println("CreateLogs k8generatror")
+	r.createK8sBody()
 	return r.baseBody, nil
 }
 
@@ -160,12 +313,22 @@ func (r *StaticGenerator) Init(fName ...string) error {
 	r.logLine = body
 	return nil
 }
-
 func (sr *StaticGenerator) GetLogLine() ([]byte, error) {
 	return sr.logLine, nil
 }
 
 func (sr *StaticGenerator) GetRawLog() (map[string]interface{}, error) {
+	final := make(map[string]interface{})
+	err := json.Unmarshal(sr.logLine, &final)
+	if err != nil {
+		return nil, err
+	}
+	return final, nil
+}
+
+func (sr *StaticGenerator) CreateLogs() (map[string]interface{}, error) {
+	fmt.Println("CreateLogs static")
+
 	final := make(map[string]interface{})
 	err := json.Unmarshal(sr.logLine, &final)
 	if err != nil {
@@ -216,6 +379,20 @@ func (fr *FileReader) GetLogLine() ([]byte, error) {
 }
 
 func (fr *FileReader) GetRawLog() (map[string]interface{}, error) {
+	rawLog, err := fr.GetLogLine()
+	if err != nil {
+		return nil, err
+	}
+	final := make(map[string]interface{})
+	err = json.Unmarshal(rawLog, &final)
+	if err != nil {
+		return nil, err
+	}
+	return final, nil
+}
+
+func (fr *FileReader) CreateLogs() (map[string]interface{}, error) {
+	fmt.Println("CreateLogs file")
 	rawLog, err := fr.GetLogLine()
 	if err != nil {
 		return nil, err
