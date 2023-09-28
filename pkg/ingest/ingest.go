@@ -97,14 +97,13 @@ func generateBody(iType IngestType, recs int, i int, rdr utils.Generator,
 		return generateESBody(recs, actionLine, rdr, bb)
 	case OpenTSDB:
 		return generateOpenTSDBBody(recs, rdr)
-	case CreateLogs:
-		return generateCreateLogsBody(recs, rdr)
+	// case CreateLogs:
+	// 	return generateCreateLogsBody(recs, rdr)
 	default:
 		log.Fatalf("Unsupported ingest type %s", iType.String())
 	}
 	return nil, fmt.Errorf("unsupported ingest type %s", iType.String())
 }
-
 func generateESBody(recs int, actionLine string, rdr utils.Generator,
 	bb *bytebufferpool.ByteBuffer) ([]byte, error) {
 
@@ -137,7 +136,7 @@ func generateOpenTSDBBody(recs int, rdr utils.Generator) ([]byte, error) {
 	return retVal, nil
 }
 
-func generateCreateLogsBody(recs int, rdr utils.Generator) ([]byte, error) {
+func generateCreateLogsBody(recs int, rdr utils.K8sGenerator) ([]byte, error) {
 	fmt.Printf("generateCreateLogsBody called \n")
 	// fmt.Println(recs)
 

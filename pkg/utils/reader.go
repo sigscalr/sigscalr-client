@@ -107,9 +107,9 @@ type msg struct {
 var logMessages = []string{
 	"%s for DRA plugin %q failed. Plugin returned an empty list for supported versions",
 	"%s for DRA plugin %q failed. None of the versions specified %q are supported. err=%v",
-	"Unable to write event '%#v' (retry limit exceeded!)",
+	"Unable to write event '%v' (retry limit exceeded!)",
 	"Unable to start event watcher: '%v' (will not retry!)",
-	"Could not construct reference to: '%#v' due to: '%v'. Will not report event: '%v' '%v' '%v'",
+	"Could not construct reference to: '%v' due to: '%v'. Will not report event: '%v' '%v' '%v'",
 }
 
 func createK8sBody(logEntry *msg, f *gofakeit.Faker) *msg {
@@ -130,22 +130,22 @@ func createK8sBody(logEntry *msg, f *gofakeit.Faker) *msg {
 func randomizeLogEntry(f *gofakeit.Faker, m map[string]interface{}) msg {
 	randomTemplate := logMessages[gofakeit.Number(0, len(logMessages)-1)]
 	logEntry := msg{}
-	createdBody := createK8sBody(&logEntry, f)
+	createK8sBody(&logEntry, f)
+	// createdBody := createK8sBody(&logEntry, f)
 	// logEntry.Msg = createdBody
-	m["batch"] = createdBody.Batch
-	m["firstName"] = createdBody.FirstName
-	m["lastName"] = createdBody.LastName
-	m["gender"] = createdBody.Gender
-	m["hostname"] = createdBody.Hostname
-	m["httpStatus"] = createdBody.HTTPStatus
-	m["city"] = createdBody.City
-	m["country"] = createdBody.Country
-	m["latency"] = createdBody.Latency
-	m["hobby"] = createdBody.Hobby
+	// m["batch"] = createdBody.Batch
+	// m["firstName"] = createdBody.FirstName
+	// m["lastName"] = createdBody.LastName
+	// m["gender"] = createdBody.Gender
+	// m["hostname"] = createdBody.Hostname
+	// m["httpStatus"] = createdBody.HTTPStatus
+	// m["city"] = createdBody.City
+	// m["country"] = createdBody.Country
+	// m["latency"] = createdBody.Latency
+	// m["hobby"] = createdBody.Hobby
 
 	logEntry.Msg = replacePlaceholders(randomTemplate)
-	fmt.Println("--------------------------------  ")
-	fmt.Println(createdBody.Batch)
+	fmt.Println(logEntry)
 	return logEntry
 }
 
@@ -156,11 +156,13 @@ func replacePlaceholders(template string) string {
 	matches := placeholderRegex.FindAllString(template, -1)
 
 	for _, match := range matches {
-		fmt.Println(match)
+		// fmt.Println(match)
 		placeholderType := match
 		placeholderType = strings.Replace(placeholderType, "%", "", 1)
 		placeholderType = strings.Replace(placeholderType, "'", "", 2)
 		var replacement string
+
+		// fmt.Println(placeholderType)
 
 		switch placeholderType {
 		case "s":
