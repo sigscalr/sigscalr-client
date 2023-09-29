@@ -111,39 +111,6 @@ var logMessages = []string{
 	"Could not construct reference to: '%v' due to: '%v'. Will not report event: '%v' '%v' '%v'",
 }
 
-func createK8sBody(logEntry *msg, f *gofakeit.Faker) *msg {
-	logEntry.Batch = fmt.Sprintf("batch-%d", f.Number(1, 1000))
-	logEntry.FirstName = f.FirstName()
-	logEntry.LastName = f.LastName()
-	logEntry.Gender = f.Gender()
-	logEntry.Hostname = f.IPv4Address()
-	logEntry.HTTPStatus = f.Number(200, 500)
-	logEntry.City = f.City()
-	logEntry.Country = f.Country()
-	logEntry.Latency = f.Number(0, 100)
-	logEntry.Hobby = f.Hobby()
-	return logEntry
-
-}
-func randomizeLogEntry(f *gofakeit.Faker, m map[string]interface{}) msg {
-	randomTemplate := logMessages[gofakeit.Number(0, len(logMessages)-1)]
-	logEntry := msg{}
-	createdBody := createK8sBody(&logEntry, f)
-	m["batch"] = createdBody.Batch
-	m["firstName"] = createdBody.FirstName
-	m["lastName"] = createdBody.LastName
-	m["gender"] = createdBody.Gender
-	m["hostname"] = createdBody.Hostname
-	m["httpStatus"] = createdBody.HTTPStatus
-	m["city"] = createdBody.City
-	m["country"] = createdBody.Country
-	m["latency"] = createdBody.Latency
-	m["hobby"] = createdBody.Hobby
-	logEntry.Msg = replacePlaceholders(randomTemplate)
-	m["msg"] = logEntry.Msg
-	return logEntry
-}
-
 func replacePlaceholders(template string) string {
 
 	placeholderRegex := regexp.MustCompile(`(['"]%[^\s%]+|(%[^\s%]+))`)
@@ -224,8 +191,32 @@ func (r *DynamicUserGenerator) generateRandomBody() {
 }
 
 func (r *K8sGenerator) createK8sBody() {
+	randomTemplate := logMessages[gofakeit.Number(0, len(logMessages)-1)]
+	logEntry := msg{}
+	logEntry.Batch = fmt.Sprintf("batch-%d", r.faker.Number(1, 1000))
+	logEntry.FirstName = r.faker.FirstName()
+	logEntry.LastName = r.faker.LastName()
+	logEntry.Gender = r.faker.Gender()
+	logEntry.Hostname = r.faker.IPv4Address()
+	logEntry.HTTPStatus = r.faker.Number(200, 500)
+	logEntry.City = r.faker.City()
+	logEntry.Country = r.faker.Country()
+	logEntry.Latency = r.faker.Number(0, 100)
+	logEntry.Hobby = r.faker.Hobby()
+	logEntry.Msg = replacePlaceholders(randomTemplate)
 
-	randomizeLogEntry(r.faker, r.baseBody)
+	r.baseBody["batch"] = logEntry.Batch
+	r.baseBody["firstName"] = logEntry.FirstName
+	r.baseBody["lastName"] = logEntry.LastName
+	r.baseBody["gender"] = logEntry.Gender
+	r.baseBody["hostname"] = logEntry.Hostname
+	r.baseBody["httpStatus"] = logEntry.HTTPStatus
+	r.baseBody["city"] = logEntry.City
+	r.baseBody["country"] = logEntry.Country
+	r.baseBody["latency"] = logEntry.Latency
+	r.baseBody["hobby"] = logEntry.Hobby
+
+	r.baseBody["msg"] = logEntry.Msg
 
 }
 
@@ -272,12 +263,6 @@ func (r *DynamicUserGenerator) GetLogLine() ([]byte, error) {
 }
 
 func (r *DynamicUserGenerator) GetRawLog() (map[string]interface{}, error) {
-	r.generateRandomBody()
-	return r.baseBody, nil
-}
-
-func (r *DynamicUserGenerator) CreateLogs() (map[string]interface{}, error) {
-
 	r.generateRandomBody()
 	return r.baseBody, nil
 }

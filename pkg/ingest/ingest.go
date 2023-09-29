@@ -129,20 +129,6 @@ func generateOpenTSDBBody(recs int, rdr utils.Generator) ([]byte, error) {
 	return retVal, nil
 }
 
-// 	for i := 0; i < recs; i++ {
-// 		currPayload, err := rdr.CreateLogs()
-// 		if err != nil {
-// 			return nil, err
-// 		}
-// 		finalPayLoad[i] = currPayload
-// 	}
-// 	retVal, err := json.Marshal(finalPayLoad)
-// 	if err != nil {
-// 		return nil, err
-// 	}
-// 	return retVal, nil
-// }
-
 func runIngestion(iType IngestType, rdr utils.Generator, wg *sync.WaitGroup, url string, totalEvents int,
 	continous bool, batchSize, processNo int, indexPrefix string, ctr *uint64, bearerToken string,
 	indexName string, numIndices int) {
@@ -266,11 +252,9 @@ func StartIngestion(iType IngestType, generatorType, dataFile string, totalEvent
 	ticker := time.NewTicker(60 * time.Second)
 	done := make(chan bool)
 	totalSent := uint64(0)
-	fmt.Println(processCount)
 	for i := 0; i < processCount; i++ {
 		wg.Add(1)
 		reader, err := getReaderFromArgs(iType, nMetrics, generatorType, dataFile, addTs)
-		fmt.Println(reader)
 		if err != nil {
 			log.Fatalf("StartIngestion: failed to initalize reader! %+v", err)
 		}
