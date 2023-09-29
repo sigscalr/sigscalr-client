@@ -217,7 +217,7 @@ func (r *K8sGenerator) createK8sBody() {
 	r.baseBody["Url"] = logEntry.Url
 	r.baseBody["latency"] = logEntry.Latency
 	r.baseBody["IPv4Address"] = logEntry.IPv4Address
-	r.baseBody["msg"] = logEntry.Msg
+	r.baseBody["Port"] = logEntry.Port
 
 	r.baseBody["msg"] = logEntry.Msg
 
