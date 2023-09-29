@@ -51,7 +51,7 @@ func sendRequest(iType IngestType, client *http.Client, lines []byte, url string
 	var requestStr string
 	switch iType {
 	case ESBulk:
-		requestStr = url + "/_bulk"
+		requestStr = url + "/_bulk"		
 	case OpenTSDB:
 		requestStr = url + "/api/put"
 
