@@ -24,7 +24,6 @@ type Generator interface {
 	Init(fName ...string) error
 	GetLogLine() ([]byte, error)
 	GetRawLog() (map[string]interface{}, error)
-	CreateLogs() (map[string]interface{}, error)
 }
 
 // file reader loads chunks from the file. Each request will get a sequential entry from the chunk.
@@ -73,7 +72,7 @@ func InitDynamicUserGenerator(ts bool, seed int64) *DynamicUserGenerator {
 }
 
 func InitK8sGenerator(ts bool, seed int64) *K8sGenerator {
-	fmt.Println("line 75 reader.go, InitK8sGenerator")
+
 	return &K8sGenerator{
 		ts:   ts,
 		seed: seed,
@@ -113,7 +112,6 @@ var logMessages = []string{
 }
 
 func createK8sBody(logEntry *msg, f *gofakeit.Faker) *msg {
-	// f.Seed(time.Now().UnixNano())
 	logEntry.Batch = fmt.Sprintf("batch-%d", f.Number(1, 1000))
 	logEntry.FirstName = f.FirstName()
 	logEntry.LastName = f.LastName()
@@ -130,22 +128,19 @@ func createK8sBody(logEntry *msg, f *gofakeit.Faker) *msg {
 func randomizeLogEntry(f *gofakeit.Faker, m map[string]interface{}) msg {
 	randomTemplate := logMessages[gofakeit.Number(0, len(logMessages)-1)]
 	logEntry := msg{}
-	createK8sBody(&logEntry, f)
-	// createdBody := createK8sBody(&logEntry, f)
-	// logEntry.Msg = createdBody
-	// m["batch"] = createdBody.Batch
-	// m["firstName"] = createdBody.FirstName
-	// m["lastName"] = createdBody.LastName
-	// m["gender"] = createdBody.Gender
-	// m["hostname"] = createdBody.Hostname
-	// m["httpStatus"] = createdBody.HTTPStatus
-	// m["city"] = createdBody.City
-	// m["country"] = createdBody.Country
-	// m["latency"] = createdBody.Latency
-	// m["hobby"] = createdBody.Hobby
-
+	createdBody := createK8sBody(&logEntry, f)
+	m["batch"] = createdBody.Batch
+	m["firstName"] = createdBody.FirstName
+	m["lastName"] = createdBody.LastName
+	m["gender"] = createdBody.Gender
+	m["hostname"] = createdBody.Hostname
+	m["httpStatus"] = createdBody.HTTPStatus
+	m["city"] = createdBody.City
+	m["country"] = createdBody.Country
+	m["latency"] = createdBody.Latency
+	m["hobby"] = createdBody.Hobby
 	logEntry.Msg = replacePlaceholders(randomTemplate)
-	fmt.Println(logEntry)
+	m["msg"] = logEntry.Msg
 	return logEntry
 }
 
@@ -156,13 +151,10 @@ func replacePlaceholders(template string) string {
 	matches := placeholderRegex.FindAllString(template, -1)
 
 	for _, match := range matches {
-		// fmt.Println(match)
 		placeholderType := match
 		placeholderType = strings.Replace(placeholderType, "%", "", 1)
 		placeholderType = strings.Replace(placeholderType, "'", "", 2)
 		var replacement string
-
-		// fmt.Println(placeholderType)
 
 		switch placeholderType {
 		case "s":
@@ -237,7 +229,6 @@ func (r *K8sGenerator) createK8sBody() {
 
 }
 
-// not sure
 func (r *K8sGenerator) Init(fName ...string) error {
 	gofakeit.Seed(r.seed)
 	r.faker = gofakeit.NewUnlocked(r.seed)
@@ -286,18 +277,12 @@ func (r *DynamicUserGenerator) GetRawLog() (map[string]interface{}, error) {
 }
 
 func (r *DynamicUserGenerator) CreateLogs() (map[string]interface{}, error) {
-	fmt.Println("Dynamic-CL")
+
 	r.generateRandomBody()
 	return r.baseBody, nil
 }
 
 func (r *K8sGenerator) GetRawLog() (map[string]interface{}, error) {
-	r.createK8sBody()
-	return r.baseBody, nil
-}
-
-func (r *K8sGenerator) CreateLogs() (map[string]interface{}, error) {
-	fmt.Println("CreateLogs k8generatror")
 	r.createK8sBody()
 	return r.baseBody, nil
 }
@@ -320,17 +305,6 @@ func (sr *StaticGenerator) GetLogLine() ([]byte, error) {
 }
 
 func (sr *StaticGenerator) GetRawLog() (map[string]interface{}, error) {
-	final := make(map[string]interface{})
-	err := json.Unmarshal(sr.logLine, &final)
-	if err != nil {
-		return nil, err
-	}
-	return final, nil
-}
-
-func (sr *StaticGenerator) CreateLogs() (map[string]interface{}, error) {
-	fmt.Println("CreateLogs static")
-
 	final := make(map[string]interface{})
 	err := json.Unmarshal(sr.logLine, &final)
 	if err != nil {
@@ -381,20 +355,6 @@ func (fr *FileReader) GetLogLine() ([]byte, error) {
 }
 
 func (fr *FileReader) GetRawLog() (map[string]interface{}, error) {
-	rawLog, err := fr.GetLogLine()
-	if err != nil {
-		return nil, err
-	}
-	final := make(map[string]interface{})
-	err = json.Unmarshal(rawLog, &final)
-	if err != nil {
-		return nil, err
-	}
-	return final, nil
-}
-
-func (fr *FileReader) CreateLogs() (map[string]interface{}, error) {
-	fmt.Println("CreateLogs file")
 	rawLog, err := fr.GetLogLine()
 	if err != nil {
 		return nil, err

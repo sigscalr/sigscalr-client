@@ -25,7 +25,6 @@ const (
 	_ IngestType = iota
 	ESBulk
 	OpenTSDB
-	CreateLogs
 )
 
 func (q IngestType) String() string {
@@ -34,8 +33,6 @@ func (q IngestType) String() string {
 		return "ES Bulk"
 	case OpenTSDB:
 		return "OTSDB"
-	case CreateLogs:
-		return "CreateLogs"
 	default:
 		return "UNKNOWN"
 	}
@@ -57,8 +54,7 @@ func sendRequest(iType IngestType, client *http.Client, lines []byte, url string
 		requestStr = url + "/_bulk"
 	case OpenTSDB:
 		requestStr = url + "/api/put"
-	case CreateLogs:
-		requestStr = url + "/_bulk"
+
 	default:
 		log.Fatalf("unknown ingest type %+v", iType)
 		return fmt.Errorf("unknown ingest type %+v", iType)
@@ -90,15 +86,12 @@ func sendRequest(iType IngestType, client *http.Client, lines []byte, url string
 
 func generateBody(iType IngestType, recs int, i int, rdr utils.Generator,
 	actLines []string, bb *bytebufferpool.ByteBuffer) ([]byte, error) {
-	fmt.Printf("generateBody called \n")
 	switch iType {
 	case ESBulk:
 		actionLine := actLines[i%len(actLines)]
 		return generateESBody(recs, actionLine, rdr, bb)
 	case OpenTSDB:
 		return generateOpenTSDBBody(recs, rdr)
-	// case CreateLogs:
-	// 	return generateCreateLogsBody(recs, rdr)
 	default:
 		log.Fatalf("Unsupported ingest type %s", iType.String())
 	}
@@ -136,24 +129,19 @@ func generateOpenTSDBBody(recs int, rdr utils.Generator) ([]byte, error) {
 	return retVal, nil
 }
 
-func generateCreateLogsBody(recs int, rdr utils.K8sGenerator) ([]byte, error) {
-	fmt.Printf("generateCreateLogsBody called \n")
-	// fmt.Println(recs)
-
-	finalPayLoad := make([]interface{}, recs)
-	for i := 0; i < recs; i++ {
-		currPayload, err := rdr.CreateLogs()
-		if err != nil {
-			return nil, err
-		}
-		finalPayLoad[i] = currPayload
-	}
-	retVal, err := json.Marshal(finalPayLoad)
-	if err != nil {
-		return nil, err
-	}
-	return retVal, nil
-}
+// 	for i := 0; i < recs; i++ {
+// 		currPayload, err := rdr.CreateLogs()
+// 		if err != nil {
+// 			return nil, err
+// 		}
+// 		finalPayLoad[i] = currPayload
+// 	}
+// 	retVal, err := json.Marshal(finalPayLoad)
+// 	if err != nil {
+// 		return nil, err
+// 	}
+// 	return retVal, nil
+// }
 
 func runIngestion(iType IngestType, rdr utils.Generator, wg *sync.WaitGroup, url string, totalEvents int,
 	continous bool, batchSize, processNo int, indexPrefix string, ctr *uint64, bearerToken string,
@@ -249,7 +237,6 @@ func getReaderFromArgs(iType IngestType, nummetrics int, gentype, str string, ts
 		log.Infof("Initializing static reader")
 		rdr = utils.InitStaticGenerator(ts)
 	case "dynamic-user":
-		fmt.Println("Hey hello from here")
 		seed := int64(fastrand.Uint32n(1_000))
 		rdr = utils.InitDynamicUserGenerator(ts, seed)
 	case "file":
@@ -272,7 +259,6 @@ func getReaderFromArgs(iType IngestType, nummetrics int, gentype, str string, ts
 
 func StartIngestion(iType IngestType, generatorType, dataFile string, totalEvents int, continuous bool,
 	batchSize int, url string, indexPrefix string, indexName string, numIndices, processCount int, addTs bool, nMetrics int, bearerToken string) {
-	log.Printf("hello from start ingestion")
 	log.Printf("Starting ingestion at %+v for %+v", url, iType.String())
 	var wg sync.WaitGroup
 	totalEventsPerProcess := totalEvents / processCount

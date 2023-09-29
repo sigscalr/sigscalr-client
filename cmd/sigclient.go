@@ -51,38 +51,6 @@ var esBulkCmd = &cobra.Command{
 	},
 }
 
-// esBulkCmd represents the es bulk ingestion
-var createLogsCmd = &cobra.Command{
-	Use:   "create-logs",
-	Short: "ingest records to SigScalr using es bulk",
-	Run: func(cmd *cobra.Command, args []string) {
-		processCount, _ := cmd.Flags().GetInt("processCount")
-		dest, _ := cmd.Flags().GetString("dest")
-		totalEvents, _ := cmd.Flags().GetInt("totalEvents")
-		continuous, _ := cmd.Flags().GetBool("continuous")
-		batchSize, _ := cmd.Flags().GetInt("batchSize")
-		indexPrefix, _ := cmd.Flags().GetString("indexPrefix")
-		numIndices, _ := cmd.Flags().GetInt("numIndices")
-		generatorType, _ := cmd.Flags().GetString("generator")
-		ts, _ := cmd.Flags().GetBool("timestamp")
-		dataFile, _ := cmd.Flags().GetString("filePath")
-		indexName, _ := cmd.Flags().GetString("indexName")
-		bearerToken, _ := cmd.Flags().GetString("bearerToken")
-
-		log.Infof("processCount : %+v\n", processCount)
-		log.Infof("dest : %+v\n", dest)
-		log.Infof("totalEvents : %+v. Continuous: %+v\n", totalEvents, continuous)
-		log.Infof("batchSize : %+v\n", batchSize)
-		log.Infof("indexPrefix : %+v\n", indexPrefix)
-		log.Infof("indexName : %+v\n", indexName)
-		log.Infof("numIndices : %+v\n", numIndices)
-		log.Infof("bearerToken : %+v\n", bearerToken)
-		log.Infof("generatorType : %+v. Add timestamp: %+v\n", generatorType, ts)
-
-		ingest.StartIngestion(ingest.CreateLogs, generatorType, dataFile, totalEvents, continuous, batchSize, dest, indexPrefix, indexName, numIndices, processCount, ts, 0, bearerToken)
-	},
-}
-
 // metricsIngestCmd represents the metrics ingestion
 var metricsIngestCmd = &cobra.Command{
 	Use:   "metrics",
@@ -214,12 +182,6 @@ func init() {
 	esBulkCmd.PersistentFlags().StringP("generator", "g", "dynamic-user", "type of generator to use. Options=[static,dynamic-user,file]. If file is selected, -x/--filePath must be specified")
 	esBulkCmd.PersistentFlags().StringP("filePath", "x", "", "path to json file to use as logs")
 
-	createLogsCmd.PersistentFlags().IntP("processCount", "p", 1, "Number of parallel process to ingest data from.")
-	// createLogsCmd.Flags().BoolP("timestamp", "s", false, "Add timestamp in payload")
-	// createLogsCmd.PersistentFlags().IntP("numIndices", "n", 1, "number of indices to ingest to")
-	// createLogsCmd.PersistentFlags().StringP("generator", "g", "dynamic-user", "type of generator to use. Options=[static,dynamic-user,file]. If file is selected, -x/--filePath must be specified")
-	// createLogsCmd.PersistentFlags().StringP("filePath", "x", "", "path to json file to use as logs")
-
 	metricsIngestCmd.PersistentFlags().IntP("metrics", "m", 1_000, "Number of different metric names to send")
 
 	queryCmd.PersistentFlags().IntP("numIterations", "n", 10, "number of times to run entire query suite")
@@ -234,7 +196,6 @@ func init() {
 
 	ingestCmd.AddCommand(esBulkCmd)
 	ingestCmd.AddCommand(metricsIngestCmd)
-	ingestCmd.AddCommand(createLogsCmd)
 	traceCmd.PersistentFlags().StringP("filePrefix", "f", "", "Name of file to output to")
 	traceCmd.PersistentFlags().IntP("totalEvents", "t", 1000000, "Total number of traces to generate")
 	traceCmd.Flags().IntP("maxSpans", "s", 100, "max number of spans in a single trace")
