@@ -90,17 +90,18 @@ func InitFileReader() *FileReader {
 }
 
 type msg struct {
-	Msg        string
-	City       string
-	Country    string
-	Latency    int
-	Batch      string
-	FirstName  string
-	LastName   string
-	Gender     string
-	Hostname   string
-	HTTPStatus int
-	Hobby      string
+	Msg         string
+	DomainName  string
+	Hostname    string
+	HTTPStatus  int
+	Batch       string
+	Region      string
+	Latency     int
+	Az          string
+	Url         string
+	UserAgent   string
+	IPv4Address string
+	Port        int
 }
 
 var logMessages = []string{
@@ -194,27 +195,29 @@ func (r *K8sGenerator) createK8sBody() {
 	randomTemplate := logMessages[gofakeit.Number(0, len(logMessages)-1)]
 	logEntry := msg{}
 	logEntry.Batch = fmt.Sprintf("batch-%d", r.faker.Number(1, 1000))
-	logEntry.FirstName = r.faker.FirstName()
-	logEntry.LastName = r.faker.LastName()
-	logEntry.Gender = r.faker.Gender()
+	logEntry.DomainName = r.faker.DomainName()
 	logEntry.Hostname = r.faker.IPv4Address()
-	logEntry.HTTPStatus = r.faker.Number(200, 500)
-	logEntry.City = r.faker.City()
-	logEntry.Country = r.faker.Country()
+	logEntry.HTTPStatus = r.faker.HTTPStatusCodeSimple()
 	logEntry.Latency = r.faker.Number(0, 100)
-	logEntry.Hobby = r.faker.Hobby()
+	logEntry.Region = r.faker.TimeZoneRegion()
+	logEntry.Az = r.faker.Country()
+	logEntry.UserAgent = r.faker.UserAgent()
+	logEntry.Url = r.faker.URL()
+	logEntry.IPv4Address = r.faker.IPv4Address()
+	logEntry.Port = r.faker.Number(0, 65535)
 	logEntry.Msg = replacePlaceholders(randomTemplate)
 
 	r.baseBody["batch"] = logEntry.Batch
-	r.baseBody["firstName"] = logEntry.FirstName
-	r.baseBody["lastName"] = logEntry.LastName
-	r.baseBody["gender"] = logEntry.Gender
+	r.baseBody["DomainName"] = logEntry.DomainName
+	r.baseBody["Region"] = logEntry.Region
+	r.baseBody["Az"] = logEntry.Az
 	r.baseBody["hostname"] = logEntry.Hostname
 	r.baseBody["httpStatus"] = logEntry.HTTPStatus
-	r.baseBody["city"] = logEntry.City
-	r.baseBody["country"] = logEntry.Country
+	r.baseBody["UserAgent"] = logEntry.UserAgent
+	r.baseBody["Url"] = logEntry.Url
 	r.baseBody["latency"] = logEntry.Latency
-	r.baseBody["hobby"] = logEntry.Hobby
+	r.baseBody["IPv4Address"] = logEntry.IPv4Address
+	r.baseBody["msg"] = logEntry.Msg
 
 	r.baseBody["msg"] = logEntry.Msg
 
