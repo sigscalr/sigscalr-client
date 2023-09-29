@@ -105,8 +105,8 @@ type msg struct {
 }
 
 var logMessages = []string{
-	"'%s' for DRA plugin '%q' failed. Plugin returned an empty list for supported versions",
-	"'%s' for DRA plugin '%q' failed. None of the versions specified '%q' are supported. err='%v'",
+	"%s for DRA plugin %q failed. Plugin returned an empty list for supported versions",
+	"%s for DRA plugin %q failed. None of the versions specified %q are supported. err='%v'",
 	"Unable to write event '%v' (retry limit exceeded!)",
 	"Unable to start event watcher: '%v' (will not retry!)",
 	"Could not construct reference to: '%v' due to: '%v'. Will not report event: '%v' '%v' '%v'",
@@ -114,13 +114,13 @@ var logMessages = []string{
 
 func replacePlaceholders(template string) string {
 
-	placeholderRegex := regexp.MustCompile(`(['"]%[^\s%]+|(%[^\s%]+))`)
+	placeholderRegex := regexp.MustCompile(`(['"]%[^\s%]+['"]|(%[^\s%]))`)
 
 	indices := placeholderRegex.FindStringIndex(template)
 	for len(indices) > 0 {
 		start := indices[0]
 		end := indices[1]
-		placeholderType := template[start : end-1]
+		placeholderType := template[start:end]
 		placeholderType = strings.Replace(placeholderType, "%", "", 1)
 		placeholderType = strings.Replace(placeholderType, "'", "", 2)
 		var replacement string
