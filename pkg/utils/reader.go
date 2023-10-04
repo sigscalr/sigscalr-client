@@ -111,15 +111,13 @@ func replacePlaceholders(template string) string {
 	// It matches placeholders within single/double quotes or unquoted,
 	// identified by a '%' followed by non-whitespace characters.
 
-	placeholderRegex := regexp.MustCompile(`(['"]%[^\s%]+['"]|(%[^\s%]))`)
+	placeholderRegex := regexp.MustCompile(`(%[^['"]\s%]+['"]|(%[^\s%]))`)
 	indices := placeholderRegex.FindStringIndex(template)
 	for len(indices) > 0 {
 		start := indices[0]
 		end := indices[1]
 		placeholderType := template[start:end]
-		// Remove % and surrounding quotes if present
 		placeholderType = strings.Replace(placeholderType, "%", "", 1)
-		placeholderType = strings.Replace(placeholderType, "'", "", 2)
 		var replacement string
 		switch placeholderType {
 		case "s":
