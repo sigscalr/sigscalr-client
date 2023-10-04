@@ -97,16 +97,27 @@ var logMessages = []string{
 	"Could not construct reference to: '%v' due to: '%v'. Will not report event: '%v' '%v' '%v'",
 }
 
-//replacePlaceholders replaces the placeholders in the template
+// replacePlaceholders replaces formatting placeholders in a string with random values.
+// The placeholders are identified using the % character followed by a type specifier:
+//   - %s: Replaced with a random word.
+//   - %q: Replaced with a random buzzword.
+//   - %v: Replaced with a random number between 1 and 100.
+//
+// Placeholders within single or double quotes are also supported.
+// For example, "Error: %v is not %s" could become "Error: 42 is not foo".
 func replacePlaceholders(template string) string {
 
-    //Regex to find all placeholders within quotes or not within quotes.
+	// The regex (placeholderRegex) captures placeholders in a string.
+	// It matches placeholders within single/double quotes or unquoted,
+	// identified by a '%' followed by non-whitespace characters.
+
 	placeholderRegex := regexp.MustCompile(`(['"]%[^\s%]+['"]|(%[^\s%]))`)
 	indices := placeholderRegex.FindStringIndex(template)
 	for len(indices) > 0 {
 		start := indices[0]
 		end := indices[1]
 		placeholderType := template[start:end]
+		// Remove % and surrounding quotes if present
 		placeholderType = strings.Replace(placeholderType, "%", "", 1)
 		placeholderType = strings.Replace(placeholderType, "'", "", 2)
 		var replacement string
@@ -124,6 +135,7 @@ func replacePlaceholders(template string) string {
 			replacement = "UNKNOWN"
 			log.Infof("Unknown placeholder type: %s", placeholderType)
 		}
+
 		template = string(template[:start]) + replacement + string(template[end:])
 		indices = placeholderRegex.FindStringIndex(template)
 	}
