@@ -97,6 +97,7 @@ func generateBody(iType IngestType, recs int, i int, rdr utils.Generator,
 	}
 	return nil, fmt.Errorf("unsupported ingest type %s", iType.String())
 }
+
 func generateESBody(recs int, actionLine string, rdr utils.Generator,
 	bb *bytebufferpool.ByteBuffer) ([]byte, error) {
 

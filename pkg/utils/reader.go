@@ -89,21 +89,6 @@ func InitFileReader() *FileReader {
 	return &FileReader{}
 }
 
-type msg struct {
-	Msg         string
-	DomainName  string
-	Hostname    string
-	HTTPStatus  int
-	Batch       string
-	Region      string
-	Latency     int
-	Az          string
-	Url         string
-	UserAgent   string
-	IPv4Address string
-	Port        int
-}
-
 var logMessages = []string{
 	"%s for DRA plugin %q failed. Plugin returned an empty list for supported versions",
 	"%s for DRA plugin %q failed. None of the versions specified %q are supported. err='%v'",
@@ -112,10 +97,11 @@ var logMessages = []string{
 	"Could not construct reference to: '%v' due to: '%v'. Will not report event: '%v' '%v' '%v'",
 }
 
+//replacePlaceholders replaces the placeholders in the template
 func replacePlaceholders(template string) string {
 
+    //Regex to find all placeholders within quotes or not within quotes.
 	placeholderRegex := regexp.MustCompile(`(['"]%[^\s%]+['"]|(%[^\s%]))`)
-
 	indices := placeholderRegex.FindStringIndex(template)
 	for len(indices) > 0 {
 		start := indices[0]
@@ -127,21 +113,18 @@ func replacePlaceholders(template string) string {
 		switch placeholderType {
 		case "s":
 			replacement = gofakeit.Word()
-			template = string(template[:start]) + "" + replacement + "" + string(template[end:])
 
 		case "q":
 			replacement = gofakeit.BuzzWord()
-			template = string(template[:start]) + "" + replacement + "" + string(template[end:])
 
 		case "v":
 			replacement = fmt.Sprintf("%d", gofakeit.Number(1, 100))
-			template = string(template[:start]) + "" + replacement + "" + string(template[end:])
+
 		default:
-
 			replacement = "UNKNOWN"
-			template = string(template[:start]) + "" + replacement + "" + string(template[end:])
-
+			log.Infof("Unknown placeholder type: %s", placeholderType)
 		}
+		template = string(template[:start]) + replacement + string(template[end:])
 		indices = placeholderRegex.FindStringIndex(template)
 	}
 	return template
@@ -198,34 +181,19 @@ func (r *DynamicUserGenerator) generateRandomBody() {
 
 func (r *K8sGenerator) createK8sBody() {
 	randomTemplate := logMessages[gofakeit.Number(0, len(logMessages)-1)]
-	logEntry := msg{}
-	logEntry.Batch = fmt.Sprintf("batch-%d", r.faker.Number(1, 1000))
-	logEntry.DomainName = r.faker.DomainName()
-	logEntry.Hostname = r.faker.IPv4Address()
-	logEntry.HTTPStatus = r.faker.HTTPStatusCodeSimple()
-	logEntry.Latency = r.faker.Number(0, 100)
-	logEntry.Region = r.faker.TimeZoneRegion()
-	logEntry.Az = r.faker.Country()
-	logEntry.UserAgent = r.faker.UserAgent()
-	logEntry.Url = r.faker.URL()
-	logEntry.IPv4Address = r.faker.IPv4Address()
-	logEntry.Port = r.faker.Number(0, 65535)
-	logEntry.Msg = replacePlaceholders(randomTemplate)
-
-	r.baseBody["batch"] = logEntry.Batch
-	r.baseBody["DomainName"] = logEntry.DomainName
-	r.baseBody["Region"] = logEntry.Region
-	r.baseBody["Az"] = logEntry.Az
-	r.baseBody["hostname"] = logEntry.Hostname
-	r.baseBody["httpStatus"] = logEntry.HTTPStatus
-	r.baseBody["UserAgent"] = logEntry.UserAgent
-	r.baseBody["Url"] = logEntry.Url
-	r.baseBody["latency"] = logEntry.Latency
-	r.baseBody["IPv4Address"] = logEntry.IPv4Address
-	r.baseBody["Port"] = logEntry.Port
-
-	r.baseBody["msg"] = logEntry.Msg
-
+	logEntry := replacePlaceholders(randomTemplate)
+	r.baseBody["batch"] = fmt.Sprintf("batch-%d", r.faker.Number(1, 1000))
+	r.baseBody["DomainName"] = r.faker.DomainName()
+	r.baseBody["Region"] = r.faker.TimeZoneRegion()
+	r.baseBody["Az"] = r.faker.Country()
+	r.baseBody["hostname"] = r.faker.IPv4Address()
+	r.baseBody["httpStatus"] = r.faker.HTTPStatusCodeSimple()
+	r.baseBody["UserAgent"] = r.faker.UserAgent()
+	r.baseBody["Url"] = r.faker.URL()
+	r.baseBody["latency"] = r.faker.Number(0, 100)
+	r.baseBody["IPv4Address"] = r.faker.IPv4Address()
+	r.baseBody["Port"] = r.faker.Number(0, 65535)
+	r.baseBody["msg"] = logEntry
 }
 
 func (r *K8sGenerator) Init(fName ...string) error {
@@ -293,6 +261,7 @@ func (r *StaticGenerator) Init(fName ...string) error {
 	r.logLine = body
 	return nil
 }
+
 func (sr *StaticGenerator) GetLogLine() ([]byte, error) {
 	return sr.logLine, nil
 }
