@@ -54,6 +54,7 @@ func sendRequest(iType IngestType, client *http.Client, lines []byte, url string
 		requestStr = url + "/_bulk"
 	case OpenTSDB:
 		requestStr = url + "/api/put"
+
 	default:
 		log.Fatalf("unknown ingest type %+v", iType)
 		return fmt.Errorf("unknown ingest type %+v", iType)
@@ -217,7 +218,6 @@ func getReaderFromArgs(iType IngestType, nummetrics int, gentype, str string, ts
 		err := rdr.Init(str)
 		return rdr, err
 	}
-
 	var rdr utils.Generator
 	switch gentype {
 	case "", "static":
@@ -233,6 +233,10 @@ func getReaderFromArgs(iType IngestType, nummetrics int, gentype, str string, ts
 		log.Infof("Initializing benchmark reader")
 		seed := int64(1001)
 		rdr = utils.InitDynamicUserGenerator(ts, seed)
+	case "k8s":
+		log.Infof("Initializing k8s reader")
+		seed := int64(1001)
+		rdr = utils.InitK8sGenerator(ts, seed)
 	default:
 		return nil, fmt.Errorf("unsupported reader type %s. Options=[static,dynamic-user,file,benchmark]", gentype)
 	}
@@ -249,7 +253,6 @@ func StartIngestion(iType IngestType, generatorType, dataFile string, totalEvent
 	ticker := time.NewTicker(60 * time.Second)
 	done := make(chan bool)
 	totalSent := uint64(0)
-
 	for i := 0; i < processCount; i++ {
 		wg.Add(1)
 		reader, err := getReaderFromArgs(iType, nMetrics, generatorType, dataFile, addTs)

@@ -6,6 +6,8 @@ import (
 	"fmt"
 	"math/rand"
 	"os"
+	"regexp"
+	"strings"
 	"sync"
 	"time"
 	"unsafe"
@@ -46,6 +48,13 @@ type StaticGenerator struct {
 	logLine []byte
 	ts      bool
 }
+type K8sGenerator struct {
+	baseBody  map[string]interface{}
+	tNowEpoch uint64
+	ts        bool
+	faker     *gofakeit.Faker
+	seed      int64
+}
 
 type DynamicUserGenerator struct {
 	baseBody  map[string]interface{}
@@ -62,6 +71,14 @@ func InitDynamicUserGenerator(ts bool, seed int64) *DynamicUserGenerator {
 	}
 }
 
+func InitK8sGenerator(ts bool, seed int64) *K8sGenerator {
+
+	return &K8sGenerator{
+		ts:   ts,
+		seed: seed,
+	}
+}
+
 func InitStaticGenerator(ts bool) *StaticGenerator {
 	return &StaticGenerator{
 		ts: ts,
@@ -70,6 +87,57 @@ func InitStaticGenerator(ts bool) *StaticGenerator {
 
 func InitFileReader() *FileReader {
 	return &FileReader{}
+}
+
+var logMessages = []string{
+	"%s for DRA plugin '%q' failed. Plugin returned an empty list for supported versions",
+	"'%s' for DRA plugin %q failed. None of the versions specified %q are supported. err='%v'",
+	"Unable to write event '%v' (retry limit exceeded!)",
+	"Unable to start event watcher: '%v' (will not retry!)",
+	"Could not construct reference to: '%v' due to: '%v'. Will not report event: '%v' '%v' '%v'",
+}
+
+// replacePlaceholders replaces formatting placeholders in a string with random values.
+// The placeholders are identified using the % character followed by a type specifier:
+//   - %s: Replaced with a random word.
+//   - %q: Replaced with a random buzzword.
+//   - %v: Replaced with a random number between 1 and 100.
+//
+// Placeholders within single or double quotes are also supported.
+// For example, "Error: %v is not %s" could become "Error: 42 is not foo".
+func replacePlaceholders(template string) string {
+
+	// The regex (placeholderRegex) captures placeholders in a string.
+	// It matches placeholders within single/double quotes or unquoted,
+	// identified by a '%' followed by non-whitespace characters.
+
+	placeholderRegex := regexp.MustCompile(`(%[^\s%])`)
+	indices := placeholderRegex.FindStringIndex(template)
+	for len(indices) > 0 {
+		start := indices[0]
+		end := indices[1]
+		placeholderType := template[start:end]
+		placeholderType = strings.Replace(placeholderType, "%", "", 1)
+		var replacement string
+		switch placeholderType {
+		case "s":
+			replacement = gofakeit.Word()
+
+		case "q":
+			replacement = gofakeit.BuzzWord()
+
+		case "v":
+			replacement = fmt.Sprintf("%d", gofakeit.Number(1, 100))
+
+		default:
+			replacement = "UNKNOWN"
+			log.Infof("Unknown placeholder type: %s", placeholderType)
+		}
+
+		template = string(template[:start]) + replacement + string(template[end:])
+		indices = placeholderRegex.FindStringIndex(template)
+	}
+	return template
 }
 
 func randomizeBody(f *gofakeit.Faker, m map[string]interface{}, addts bool) {
@@ -121,6 +189,39 @@ func (r *DynamicUserGenerator) generateRandomBody() {
 	randomizeBody(r.faker, r.baseBody, r.ts)
 }
 
+func (r *K8sGenerator) createK8sBody() {
+	randomTemplate := logMessages[gofakeit.Number(0, len(logMessages)-1)]
+	logEntry := replacePlaceholders(randomTemplate)
+	r.baseBody["batch"] = fmt.Sprintf("batch-%d", r.faker.Number(1, 1000))
+	r.baseBody["DomainName"] = r.faker.DomainName()
+	r.baseBody["Region"] = r.faker.TimeZoneRegion()
+	r.baseBody["Az"] = r.faker.Country()
+	r.baseBody["hostname"] = r.faker.IPv4Address()
+	r.baseBody["httpStatus"] = r.faker.HTTPStatusCodeSimple()
+	r.baseBody["UserAgent"] = r.faker.UserAgent()
+	r.baseBody["Url"] = r.faker.URL()
+	r.baseBody["latency"] = r.faker.Number(0, 100)
+	r.baseBody["IPv4Address"] = r.faker.IPv4Address()
+	r.baseBody["Port"] = r.faker.Number(0, 65535)
+	r.baseBody["msg"] = logEntry
+}
+
+func (r *K8sGenerator) Init(fName ...string) error {
+	gofakeit.Seed(r.seed)
+	r.faker = gofakeit.NewUnlocked(r.seed)
+	rand.Seed(r.seed)
+	r.baseBody = make(map[string]interface{})
+	r.createK8sBody()
+	body, err := json.Marshal(r.baseBody)
+	if err != nil {
+		return err
+	}
+	stringSize := len(body) + int(unsafe.Sizeof(body))
+	log.Infof("Size of a random log line is %+v bytes", stringSize)
+	r.tNowEpoch = uint64(time.Now().UnixMilli()) - 80*24*3600*1000
+	return nil
+}
+
 func (r *DynamicUserGenerator) Init(fName ...string) error {
 	gofakeit.Seed(r.seed)
 	r.faker = gofakeit.NewUnlocked(r.seed)
@@ -137,6 +238,11 @@ func (r *DynamicUserGenerator) Init(fName ...string) error {
 	return nil
 }
 
+func (r *K8sGenerator) GetLogLine() ([]byte, error) {
+	r.createK8sBody()
+	return json.Marshal(r.baseBody)
+}
+
 func (r *DynamicUserGenerator) GetLogLine() ([]byte, error) {
 	r.generateRandomBody()
 	return json.Marshal(r.baseBody)
@@ -144,6 +250,11 @@ func (r *DynamicUserGenerator) GetLogLine() ([]byte, error) {
 
 func (r *DynamicUserGenerator) GetRawLog() (map[string]interface{}, error) {
 	r.generateRandomBody()
+	return r.baseBody, nil
+}
+
+func (r *K8sGenerator) GetRawLog() (map[string]interface{}, error) {
+	r.createK8sBody()
 	return r.baseBody, nil
 }
 
