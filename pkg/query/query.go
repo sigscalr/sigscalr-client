@@ -378,7 +378,7 @@ func getRandomQuery() []byte {
 	var matchAllQuery = map[string]interface{}{
 		"query": map[string]interface{}{
 			"bool": map[string]interface{}{
-				"must": must,
+				"must":   must,
 				"should": should,
 				"filter": []interface{}{
 					map[string]interface{}{
