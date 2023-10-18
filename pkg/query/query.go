@@ -641,7 +641,7 @@ func RunQueryFromFile(dest string, numIterations int, prefix string, continuous,
 							if reflect.DeepEqual(groupByValuesStrs, groupData[2:]) {
 								measureVal := groupMap["MeasureVal"].(map[string]interface{})
 								actualValue, ok := measureVal[groupData[1]].(float64)
-
+								actualValueIsNumber := true
 								if !ok {
 									// Try converting it to a string and then a float.
 									actualValueStr, ok := measureVal[groupData[1]].(string)
@@ -653,11 +653,15 @@ func RunQueryFromFile(dest string, numIterations int, prefix string, continuous,
 									actualValue, err = strconv.ParseFloat(actualValueStr, 64)
 
 									if err != nil {
-										log.Fatalf("RunQueryFromFile: Returned aggregate value is not a float: %v", actualValueStr)
+										actualValueIsNumber = false
 									}
 								}
 
-								ok, err = verifyInequality(actualValue, relation, expectedValue)
+								if actualValueIsNumber {
+									ok, err = verifyInequality(actualValue, relation, expectedValue)
+								} else {
+									ok, err = verifyInequalityForStr(measureVal[groupData[1]].(string), relation, expectedValue)
+								}
 
 								if err != nil {
 									log.Fatalf("RunQueryFromFile: Error in verifying aggregation: %v", err)
@@ -681,6 +685,20 @@ func RunQueryFromFile(dest string, numIterations int, prefix string, continuous,
 				log.Infof("Received unknown message from server: %+v\n", readEvent)
 			}
 		}
+	}
+}
+
+// Only string comparisons for equality are allowed
+func verifyInequalityForStr(actual string, relation, expected string) (bool, error) {
+	if relation == "eq" {
+		if actual == expected {
+			return true, nil
+		} else {
+			return false, fmt.Errorf("verifyInequalityForStr: actual: \"%v\" and expected: \"%v\" are not equal", actual, expected)
+		}
+	} else {
+		log.Errorf("verifyInequalityForStr: Invalid relation: %v", relation)
+		return false, fmt.Errorf("verifyInequalityForStr: Invalid relation: %v", relation)
 	}
 }
 
