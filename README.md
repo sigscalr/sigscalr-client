@@ -112,8 +112,8 @@ Options:
 
 To send ingestion traffic to a server using ES Bulk API:
 ```bash
-$ go run main.go ingest -t 1000 -d http://localhost:8081/elastic -g file -x {filePrefix}_services.json --indexName jaeger-service-YYYY-MM-DD
-$ go run main.go ingest -t 1000 -d http://localhost:8081/elastic -g file -x {filePrefix}_spans.json --indexName jaeger-span-YYYY-MM--DD
+$ go run main.go ingest esbulk -t 1000 -d http://localhost:8081/elastic -g file -x {filePrefix}_services.json --indexName jaeger-service-YYYY-MM-DD
+$ go run main.go ingest esbulk -t 1000 -d http://localhost:8081/elastic -g file -x {filePrefix}_spans.json --indexName jaeger-span-YYYY-MM-DD
 ```
 
 Options:
