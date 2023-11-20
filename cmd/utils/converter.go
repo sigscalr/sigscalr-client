@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"flag"
 	"os"
+	"strconv"
 	"strings"
 	"time"
 
@@ -47,11 +48,37 @@ func convertTSVToJson(input string, output string) error {
 			log.Infof("Still converting file. Total time %+v. Number of lines %+v", time.Since(sTime), count)
 		}
 		rawValues := strings.Split(scanner.Text(), "\t")
-		for idx, value := range columns {
+		for idx, column := range columns {
 			if idx >= len(rawValues) {
-				jsonValue[value] = nil
+				jsonValue[column] = nil
 			} else {
-				jsonValue[value] = rawValues[idx]
+				value := rawValues[idx]
+
+				// Try converting to a number.
+				intVal, err := strconv.ParseInt(value, 10, 64)
+				if err == nil {
+					jsonValue[column] = intVal
+					continue
+				}
+
+				floatVal, err := strconv.ParseFloat(value, 64)
+				if err == nil {
+					jsonValue[column] = floatVal
+					continue
+				}
+
+				// Try converting to a boolean.
+				if value == "false" {
+					jsonValue[column] = false
+					continue
+				}
+				if value == "true" {
+					jsonValue[column] = true
+					continue
+				}
+
+				// Keep this as a string.
+				jsonValue[column] = value
 			}
 		}
 		rawVal, err := json.Marshal(jsonValue)
