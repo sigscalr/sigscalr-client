@@ -308,7 +308,7 @@ func (fr *FileReader) Init(fName ...string) error {
 func (fr *FileReader) GetLogLine() ([]byte, error) {
 	fr.editLock.Lock()
 	defer fr.editLock.Unlock()
-	if fr.currIdx >= len(fr.logLines)-1 {
+	if fr.currIdx >= len(fr.logLines) {
 		err := fr.prefetchChunk(false)
 		if err != nil {
 			return []byte{}, err
@@ -378,7 +378,7 @@ func (fr *FileReader) prefetchChunk(override bool) error {
 	tmpMap := make(map[string]interface{})
 	lNum := 0
 	for fileScanner.Scan() {
-		if lNum <= fr.lineNum {
+		if lNum < fr.lineNum {
 			lNum++
 			continue
 		}
